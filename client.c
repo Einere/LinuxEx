@@ -9,57 +9,62 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define maxline 1000
-#define name_len 20
+#define maxline 100
+//#define name_len 20
 
 char *EXIT_STRING = "exit";
 int tcp_connect(int af, char *servip, unsigned short port);
 void errquit(char *mesg){ perror(mesg); exit(1); }
 
 int main(int argc, char *argv[]){
-	char bufall[maxline + name_len];
-	char *bufmsg;
+	char file_name[maxline];
 	int maxfdp1;
-	int s;
+	int s, nbyte, fd;
 	int namelen;
 	fd_set read_fds;
 
-	if(argc != 4){
-		printf("usage : %s server_ip port name\n", argv[0]);
+	if(argc != 3){
+		printf("usage : %s server_ip port filename\n", argv[0]);
 		exit(1);
 	}
 
-	sprintf(bufall, "[%s] : ", argv[3]);
-	namelen = strlen(bufall);
-	bufmsg = bufall + namelen;
 	s = tcp_connect(AF_INET, argv[1], atoi(argv[2]));
-
 	if(s == -1) errquit("tcp_connect fail");
+	memset(file_name, 0x00, maxline);
+	//init file_name
 	puts("connect to server");
 	maxfdp1 = s+1;
 	FD_ZERO(&read_fds);
 
 	while(1){
 		FD_SET(0, &read_fds);
-		FD_SET(s, &read_fds);
 
 		if(select(maxfdp1, &read_fds, NULL, NULL, NULL) <0) errquit("select fail");
-		if(FD_ISSET(s, &read_fds)){
-			int nbyte;
-			if((nbyte = recv(s, bufmsg, maxline, 0)) > 0){
-				bufmsg[nbyte] = 0;
-				printf("%s\n", bufmsg);
-			}
-		}
-
 		if(FD_ISSET(0, &read_fds)){
-			if(fgets(bufmsg, maxline, stdin)){
-				if(send(s, bufall, namelen + strlen(bufmsg), 0) < 0) puts("erre : write error on select");
-				if(strstr(bufmsg, EXIT_STRING) != NULL){
+			if(fgets(file_name, maxline, stdin)){
+				//input file name to file_name
+				file_name[strlen(file_name)-1] = '\0';
+				
+				if(strstr(file_name, EXIT_STRING) != NULL){
 					puts("good bye");
 					close(s);
 					exit(0);
 				}
+				printf("file name is %s...\n", file_name);
+				
+				if(send(s, file_name, maxline, 0) < 0) puts("erre : send error on select");
+				//send file_name to server
+				if((fd = open(file_name, O_RDONLY)) < 0) perror("open source file error :") ;
+				//open file using file_name
+				
+				sleep(1);
+				printf("sending...\n");
+				memset(file_name, 0x00, maxline);
+				nbyte = read(fd, file_name, maxline);
+				//read from open file
+				send(s, file_name, nbyte, 0);
+				//send file data to server
+				if(nbyte == 0) break;
 			}
 		}
 	}

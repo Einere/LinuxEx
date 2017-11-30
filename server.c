@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#define maxline 511
+#define BUFSIZE 100
 #define max_sock 1024
 
 char *EXIT_STRING = "exit";
@@ -27,59 +27,74 @@ void errquit(char *mesg){
 	exit(1);
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
 	struct sockaddr_in cliaddr;
-	char buf[maxline + 1];
-	int i, j, nbyte, accp_sock;
+	char buf[BUFSIZE];
+	int i, j, nbyte, accp_sock, fd, fd2;
 	int addrlen = sizeof(struct sockaddr_in);
 	fd_set read_fds;
 
-	if(argc != 2){ 
+	if (argc != 2) {
 		//if lack arguments
 		printf("usage : %s port\n", argv[0]);
 		exit(1);
 	}
 
 	listen_sock = tcp_listen(INADDR_ANY, atoi(argv[1]), 5);
-	
-	while(1){
-		FD_ZERO(&read_fds);
-		FD_SET(listen_sock, &read_fds); //add socket fd to read_fds
 
-		for(i = 0; i < num_chat; i++) FD_SET(clisock_list[i], &read_fds);
+	while (1) {
+		FD_ZERO(&read_fds);
+		FD_SET(listen_sock, &read_fds);
+		//add socket fd to read_fds
+
+		char file_name[BUFSIZE];
+		memset(file_name, 0x00, BUFSIZE);
+		//for file name to save
+
+		for (i = 0; i < num_chat; i++) FD_SET(clisock_list[i], &read_fds);
+		//add clients to observ
 
 		maxfdp1 = getmax() + 1;
 		puts("wait for client");
 
-		if(select(maxfdp1, &read_fds, NULL, NULL, NULL) < 0) errquit("select fial");
-		if(FD_ISSET(listen_sock, &read_fds)){
+		if (select(maxfdp1, &read_fds, NULL, NULL, NULL) < 0) errquit("select fail");
+		//select until client's request
+
+		if (FD_ISSET(listen_sock, &read_fds)) {
+			//if client's request is received
 			accp_sock = accept(listen_sock, (struct sockaddr*)&cliaddr, &addrlen);
-			if(accp_sock == -1) errquit("accept fail");
+			if (accp_sock == -1) errquit("accept fail");
+
 			addclient(accp_sock, &cliaddr);
-			send(accp_sock, START_STRING, strlen(START_STRING), 0);
-			printf("%dth user addtion\n", num_chat);
-		}
+			
+			recv(accp_sock, file_name, BUFSIZE, 0);
 
-		for(i = 0; i < num_chat; i++){
-			if(FD_ISSET(clisock_list[i], &read_fds)){
-				nbyte = recv(clisock_list[i], buf, maxline, 0);
-				if(nbyte == 0){
-					removeclient(i);
-					continue;
-				}
-				buf[nbyte] = 0;
-
-				if(strstr(buf, EXIT_STRING) != NULL){
-					removeclient(i);
-					continue;
-				}
-
-				for(j = 0; j < num_chat; j++) send(clisock_list[i], buf, nbyte, 0);
-				printf("%s\n",buf);
+			if ((fd = open(file_name, O_WRONLY | O_CREAT | O_EXCL, 0666)) < 0) {
+				//open file to write
+				errquit("open file to write fail");
+				exit(1);
+			}else{
+				printf("open file to write sucess\n");
 			}
-		}
+			
+			while(10){
+				memset(buf, 0x00, BUFSIZE);
+				nbyte = recv(accp_sock, buf, BUFSIZE, 0);
+				printf("received string is %s...\nnbyte is %d...\n",buf,nbyte);
+				write(fd, buf, nbyte);
+
+				if(nbyte == 0) break;
+				
+			}
+
+		}		
+		printf("complete\n");
+		close(accp_sock);
+		close(fd);
 	}
+	close(listen_sock);
 	return 0;
+
 }
 
 void addclient(int s, struct sockaddr_in *newcliaddr){
@@ -113,7 +128,7 @@ int tcp_listen(int host, int port, int backlog){
 
 	if((sd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
 		perror("socket fail");
-		exit(10);
+		exit(1);
 	}
 
 	bzero((char*)&servaddr, sizeof(servaddr));
