@@ -134,23 +134,6 @@ void __thread_wakeup(Thread* pTCB){
 	//unlock mutex
 }
 
-void __ContextSwitch(Thread* pCurTCB,Thread* pNewTCB){
-	//send running thread to ready queue, pop head thread and run
-	//schduler call rq_pop, pass Thread pointer to __ContextSwitch()
-	
-	pthread_kill(pCurTCB->tid, SIGUSR1);
-	//stop running thread
-	pCurTCB->status = THREAD_STATUS_READY;
-	//set stoped thread's status to ready
-	rq_push(pCurTCB);
-	//push stoped thread at ready queue
-	__thread_wakeup(pNewTCB);
-	//run new thread by waking up
-	
-	return NULL;
-}
-
-
 void rq_push(Thread *in_TCB){
 	//insert in_TCB at ready queue
 	if(ReadyQHead == NULL){
