@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include <stdio.h>
 
-
 #define TIMESLICE	(2)
 
 
@@ -20,7 +19,7 @@ typedef enum{
 	THREAD_STATUS_ZOMBIE = 3 
 } ThreadStatus;
 
-//typedef struct _Thread Thread;
+typedef struct _Thread Thread;
 typedef struct _Thread {
 	ThreadStatus		status;
 	void*               pEixtCode;
