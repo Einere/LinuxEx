@@ -96,6 +96,7 @@ thread_t	thread_self()
 }	
 
 void __thread_wait_handler(int signo){
+	//call when send thread at ready queue
 	Thread* tmp;
 
 	tmp = __getThread(pthread_self());
@@ -131,6 +132,22 @@ void __thread_wakeup(Thread* pTCB){
 	//change bRunnable to true, so thread corresponding TCB will be wake up
 	pthread_mutex_unlock(&(pTCB->readyMutex));
 	//unlock mutex
+}
+
+void __ContextSwitch(Thread* pCurTCB,Thread* pNewTCB){
+	//send running thread to ready queue, pop head thread and run
+	//schduler call rq_pop, pass Thread pointer to __ContextSwitch()
+	
+	pthread_kill(pCurTCB->tid, SIGUSR1);
+	//stop running thread
+	pCurTCB->status = THREAD_STATUS_READY;
+	//set stoped thread's status to ready
+	rq_push(pCurTCB);
+	//push stoped thread at ready queue
+	__thread_wakeup(pNewTCB);
+	//run new thread by waking up
+	
+	return NULL;
 }
 
 

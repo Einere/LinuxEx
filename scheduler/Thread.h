@@ -23,6 +23,7 @@ typedef enum{
 //typedef struct _Thread Thread;
 typedef struct _Thread {
 	ThreadStatus		status;
+	void*               pEixtCode;
     pthread_t			tid;
     pthread_cond_t     	readyCond;
    	BOOL				bRunnable;
@@ -58,6 +59,7 @@ thread_t 	thread_self();
 void __thread_wait_handler(int signo);
 Thread* __getThread(thread_t tid);
 void __thread_wakeup(Thread* pTCB);
+void __ContextSwitch(Thread* pCurTCB, Thread* pNewTCB);  
 
 void rq_push(Thread *in_TCB);
 Thread* rq_search(pthread_t s_tid);
