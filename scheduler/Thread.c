@@ -34,6 +34,7 @@ void* __wrapperFunc(void* arg){
 
 
 int thread_create(thread_t *thread, thread_attr_t *attr, void *(*start_routine) (void *), void *arg){
+	//make child thread and push in ready queue
 	//!!!!!!!!!! need to confirm !!!!!!!!!!
 	
 	pthread_t tmp_tid;
@@ -44,26 +45,26 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void *(*start_routine) 
 	wrapperArg.funcArg = arg;
 	//set wrapper function, argument
 	
-	//signal(SIGUSR1,__thread_wait_handler); 
+	signal(SIGUSR1, __thread_wait_handler); 
 	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
 	//create thread and make to execute __wrapperFunc
 	
-	Thread tmp;
+	Thread* tmp = (Thread*)malloc(sizeof(Thread));
 	//make TCB
-	tmp.tid = tmp_tid;
-	tmp.status = THREAD_STATUS_READY;
-	tmp.parentTid = thread_self(); //pthread_self() or thread_self()
-	tmp.bRunnable = false;
-	pthread_mutex_init(&tmp.readyMutex, NULL);
-	tmp.pPrev = tmp.pNext = NULL;
+	tmp->tid = tmp_tid;
+	tmp->status = THREAD_STATUS_READY;
+	tmp->parentTid = thread_self(); 
+	tmp->bRunnable = false;
+	pthread_mutex_init(&(tmp->readyMutex), NULL);
+	tmp->pPrev = tmp.pNext = NULL;
 	//set information
 	
-	rq_push(&tmp);
+	rq_push(tmp);
 	//push tmp thread in ready queue
 	
-	sleep(1);
+	//sleep(1);
 
-	//pthread_kill(tmp_tid, SIGUSR1);
+	pthread_kill(tmp_tid, SIGUSR1);
 	//make child thread call handler by sending SIGUSR1
 	return 0;
 }
@@ -99,13 +100,10 @@ void __thread_wait_handler(int signo){
 	fprintf(stderr, "wait_handler is called (__thread_wait_handler())\n");
 	tmp = __getThread(pthread_self());
 	//get caller's TCB pointer
-	printf("11111\n");
 	pthread_mutex_lock(&(tmp->readyMutex));
 	//lock mutex
-	printf("22222\n");
 	while(tmp->bRunnable == false) pthread_cond_wait(&(tmp->readyCond), &(tmp->readyMutex));
 	//wait until bRunnable be true
-	printf("3333\n");
 	pthread_mutex_unlock(&(tmp->readyMutex));
 	//unlock mutex
 }

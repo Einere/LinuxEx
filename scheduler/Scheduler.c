@@ -17,7 +17,6 @@ int RunScheduler( void ){
 			fprintf(stderr, "running thread's tid = %lu (RunScheduler())\n", thread_self()); 	
 			pCurThread = __getThread(thread_self());
 			//get running thread's TCB pointer
-			
 			if(pCurThread == NULL) fprintf(stderr, "current thread isn't exist\n");
 			//fprintf(stderr, "aa\n");
 			
@@ -48,8 +47,8 @@ void __ContextSwitch(Thread* pCurThread, Thread* pNewThread){
 	fprintf(stderr, "----- context swich start -----\n");
 
 	if(pCurThread != NULL){
-		//if current thread is not NULL
-		fprintf(stderr, "current thread is not null\n");
+		//if current thread is exist
+		fprintf(stderr, "current thread is exist\n");
 		pthread_kill(pCurThread->tid, SIGUSR1);
 		//stop running thread
 		pCurThread->status = THREAD_STATUS_READY;
@@ -59,10 +58,13 @@ void __ContextSwitch(Thread* pCurThread, Thread* pNewThread){
 	}
 
 	if(pNewThread != NULL){
-		//if new thread is not NULL
+		//if new thread is exist
 		fprintf(stderr, "next thread is not null\n");
 		__thread_wakeup(pNewThread);
 		//run new thread by waking up
+		//wakeup function change thread's bRunnable and status
+		pCurThread = pNewThread;
+		//for track running thread's TCB
 	}
 
 	fprintf(stderr, "----- context switch end -----\n");
