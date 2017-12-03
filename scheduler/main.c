@@ -28,6 +28,7 @@ int main(void)
 	thread_t tid;
 	int arg;
 
+	RunQHead = NULL;
 	thread_create(&tid, NULL, exam, NULL);
 	
 	printf("----- run scheduler ------\n");

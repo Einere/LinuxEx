@@ -48,6 +48,9 @@ Thread*		ReadyQTail;
 Thread*		WaitQHead;
 Thread*		WaitQTail;
 
+/* head for running queue */
+Thread*     RunQHead;
+
 /* user define functions */
 int 		thread_create(thread_t *thread, thread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 int 		thread_join(thread_t thread, void **retval);
