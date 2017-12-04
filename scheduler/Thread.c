@@ -2,7 +2,6 @@
 #include "Init.h"
 #include "Scheduler.h"
 #include <signal.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -14,18 +13,39 @@ void* __wrapperFunc(void* arg){
 	WrapperArg* pArg = (WrapperArg*)arg;
 	//arg is wrapperArg, need to casting WrapperArg type  
 	
+	Thread* tmp = (Thread*)malloc(sizeof(Thread));
+	//make TCB
+	tmp->tid = thread_self();
+	tmp->status = THREAD_STATUS_READY;
+	tmp->parentTid = 0; 
+	tmp->bRunnable = false;
+	pthread_mutex_init(&(tmp->readyMutex), NULL);
+	pthread_cond_init(&(tmp->readyCond), NULL);
+	tmp->pPrev = tmp->pNext = NULL;
+	//set information
+	
+	rq_push(tmp);
+	is_pushed = true;
+	//push tmp thread in ready queue
+	
+	pthread_cond_signal(&static_cond);
+	//send signal to parent therad
+/*
 	sigset_t set;
 	int retSig;
 	//for handler
-
+	
 	sigemptyset(&set);
 	sigaddset(&set, SIGUSR1);
 	sigwait(&set, &retSig);
+	fprintf(stderr, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
 	//wait until TCB is pushed in ready queue
 	//if TCB is pushed in ready queue, parent thread send SIGUSR1 to child thread to execute handler
-	
+*/	
 	__thread_wait_handler(0);
 	//block until thread is ready to run
+	fprintf(stderr, "child thread will run func (__wrapperFunc())\n");
+
 	void* (*funcPtr)(void*) = pArg->funcPtr;
 	void* funcArg = pArg->funcArg;
 	ret = funcPtr(funcArg);
@@ -45,29 +65,22 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void *(*start_routine) 
 	wrapperArg.funcPtr = start_routine;
 	wrapperArg.funcArg = arg;
 	//set wrapper function, argument
-	printf("parent create thread right now\n");	
+	fprintf(stderr, "parent create thread right now\n");	
 	signal(SIGUSR1, __thread_wait_handler); 
 	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
 	//create thread and make to execute __wrapperFunc
-	printf("pthread_create called\n");
-	thread = tmp_tid;
+	fprintf(stderr, "pthread_create called\n");
+	
+	pthread_mutex_lock(&static_mutex);
+	while(is_pushed == false) pthread_cond_wait(&static_cond, &static_mutex);
+	is_pushed = false;
+	pthread_mutex_unlock(&static_mutex);
+
+	fprintf(stderr, "parent received signal from child thread (thread_create())\n");
+	*thread = tmp_tid;
 	//call back created thread's tid
-	Thread* tmp = (Thread*)malloc(sizeof(Thread));
-	//make TCB
-	tmp->tid = tmp_tid;
-	tmp->status = THREAD_STATUS_READY;
-	tmp->parentTid = thread_self(); 
-	tmp->bRunnable = false;
-	pthread_mutex_init(&(tmp->readyMutex), NULL);
-	tmp->pPrev = tmp->pNext = NULL;
-	//set information
-	
-	rq_push(tmp);
-	//push tmp thread in ready queue
-	
-	//sleep(1);
-	printf("parent send signal right now\n");
-	pthread_kill(tmp_tid, SIGUSR1);
+	//printf("parent send signal right now\n");
+	//pthread_kill(tmp_tid, SIGUSR1);
 	//make child thread call handler by sending SIGUSR1
 	return 0;
 }
@@ -103,13 +116,18 @@ void __thread_wait_handler(int signo){
 	fprintf(stderr, "wait_handler is called (__thread_wait_handler())\n");
 	tmp = __getThread(pthread_self());
 	//get caller's TCB pointer
-	printf("aaaaaaaa\n");
 	pthread_mutex_lock(&(tmp->readyMutex));
 	//lock mutex
-	while(tmp->bRunnable == false) pthread_cond_wait(&(tmp->readyCond), &(tmp->readyMutex));
+	fprintf(stderr, "i lock mutex (__thread_wait_handler())\n");
+	while(tmp->bRunnable == false){
+		fprintf(stderr, "caller's bRunnable is false (__thread_wait_handler())\n");
+		pthread_cond_wait(&(tmp->readyCond), &(tmp->readyMutex));
+		fprintf(stderr, "receive signal to wake up (__thread_wait_handler())\n");
+	}
 	//wait until bRunnable be true
 	pthread_mutex_unlock(&(tmp->readyMutex));
 	//unlock mutex
+	fprintf(stderr, "i unlock mutex (__thread_wait_handler())\n");
 }
 
 Thread* __getThread(thread_t tid){
@@ -133,15 +151,18 @@ Thread* __getThread(thread_t tid){
 
 void __thread_wakeup(Thread* pTCB){
 	//wake up thread with 1st TCB only when it need to run
+	
 	pthread_mutex_lock(&(pTCB->readyMutex));
 	//lock mutex
 	pTCB->bRunnable = true;
 	pthread_cond_signal(&(pTCB->readyCond));
 	//change bRunnable to true, so thread corresponding TCB will be wake up
-	pthread_mutex_unlock(&(pTCB->readyMutex));
-	//unlock mutex
 	pTCB->status = THREAD_STATUS_RUN;
 	//set status to run
+	pthread_mutex_unlock(&(pTCB->readyMutex));
+	//unlock mutex
+	
+
 }
 
 void rq_push(Thread *in_TCB){
@@ -205,15 +226,13 @@ Thread* rq_remove(pthread_t r_tid){
 
 Thread* rq_pop(){
 	//pop head TCB from ready queue
-	Thread* tmp;
-	tmp = ReadyQHead;
+	Thread* tmp = ReadyQHead;
 
 	if(tmp == NULL){
 		perror("not exist TCB in ready queue : ");
 		return NULL;
 	}
-
-	tmp->pNext->pPrev = NULL;
+	if(tmp->pNext != NULL) tmp->pNext->pPrev = NULL;
 	//next TCB unlink to tmp
 	ReadyQHead = tmp->pNext;
 	//advance readyQHead

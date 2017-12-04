@@ -15,7 +15,8 @@ void* child(void* arg){
 
 void* exam(void* arg){
 	thread_t tid;
-	
+
+
 	//thread_create(&tid, NULL, child, NULL);
 	while(1) {
 		printf("exam is running\n");
@@ -23,10 +24,12 @@ void* exam(void* arg){
 	}
 }
 
-int main(void)
-{
+int main(void){
 	thread_t tid;
 	int arg;
+	
+	pthread_mutex_init(&static_mutex, NULL);
+	pthread_cond_init(&static_cond, NULL);
 
 	RunQHead = NULL;
 	thread_create(&tid, NULL, exam, NULL);

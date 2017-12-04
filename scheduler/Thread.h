@@ -3,14 +3,18 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define TIMESLICE	(2)
 
 
 typedef int BOOL;
-typedef pthread_t	thread_t;
+typedef pthread_t thread_t;
 typedef void thread_attr_t;
 
+pthread_cond_t static_cond; 
+pthread_mutex_t static_mutex;
+bool is_pushed;
 
 typedef enum{
 	THREAD_STATUS_RUN = 0,
