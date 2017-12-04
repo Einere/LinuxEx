@@ -15,6 +15,7 @@ void* __wrapperFunc(void* arg){
 	
 	Thread* tmp = (Thread*)malloc(sizeof(Thread));
 	//make TCB
+
 	tmp->tid = thread_self();
 	tmp->status = THREAD_STATUS_READY;
 	tmp->parentTid = 0; 
@@ -49,9 +50,10 @@ void* __wrapperFunc(void* arg){
 
 	void* (*funcPtr)(void*) = pArg->funcPtr;
 	void* funcArg = pArg->funcArg;
-	fprintf(stderr, "bbbbbbbbbbbbbbbbbbbb\n");
+	fprintf(stderr, "pArg->funcPtr = %p, pArg->funcArg = %p\n", pArg->funcPtr, pArg->funcArg);
 	
-	ret = (funcPtr)(funcArg);
+	fprintf(stderr, "funcPtr(funcArg) = %d",funcPtr(funcArg));
+	ret = funcPtr(funcArg);
 	//위에서 세그폴트가 뜨는것 같음. 수정 필요.
 	
 	fprintf(stderr, "will run func?\n");	

@@ -6,10 +6,10 @@
 #include <unistd.h>
 
 void* exam(void* arg){
-	while(1) {
-		printf("exam is running\n");
+	//while(1) {
+		fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!!1exam is running\n");
 		sleep(1);
-	}
+	//}
 }
 
 int main(void){

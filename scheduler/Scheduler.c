@@ -10,36 +10,31 @@ int RunScheduler( void ){
 	Thread* pNewThread = NULL;
 	
 	while(1){
+		pCurThread = RunQHead;
+		//get running thread's TCB pointer
+
 		if(ReadyQHead != NULL){
 			//if ready queue is not empty	
 			fprintf(stderr, "ready queue is not empyt (RunScheduler())\n");
 			
-			//pCurThread = __getThread(  );
-			pCurThread = RunQHead;
-			//get running thread's TCB pointer
-			
 			if(pCurThread == NULL) fprintf(stderr, "running thread's TCB isn't exist (RunScheduler())\n");
 			
-			pNewThread = rq_pop();
-			//pop 1st TCB in ready queue, get it's pointer
-
-			if(pNewThread == NULL) {
+			if((pNewThread = rq_pop()) == NULL) {
+				//pop 1st TCB in ready queue, get it's pointer
 				fprintf(stderr, "new thread's TCB isn't exist (RunScheduler())\n");
 				continue;
 				//if ready queue is empty, don't call context switch
 			}
-
-			__ContextSwitch(pCurThread, pNewThread);
-			//context switch
-		
-			fprintf(stderr, "----- sleep 2 -----\n");
-			sleep(TIMESLICE);
-			fprintf(stderr, "----- wake up -----\n");
 		}
 		else{
 			fprintf(stderr, "ReadyQHead is NULL (RunScheduler())\n");
-			sleep(1);
 		}
+		__ContextSwitch(pCurThread, pNewThread);
+		//context switch
+		
+		fprintf(stderr, "----- sleep 2 -----\n");
+		sleep(TIMESLICE);
+		fprintf(stderr, "----- wake up -----\n");
 	}
 }
 
