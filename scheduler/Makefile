@@ -1,8 +1,8 @@
-example : Thread.o main.o Scheduler.o 
-	gcc -pthread Thread.o main.o Scheduler.o -o example
+example : Thread.o main.o Scheduler.o
+	gcc -g -pthread Thread.o main.o Scheduler.o -o example
 Thread.o : Thread.c
-	gcc -pthread -c Thread.c -o Thread.o
+	gcc -g -pthread -c Thread.c -o Thread.o
 main.o : main.c
-	gcc -pthread -c main.c -o main.o
+	gcc -g -pthread -c main.c -o main.o
 Scheduler.o : Scheduler.c
-	gcc -pthread -c Scheduler.c -o Scheduler.o
+	gcc -g -pthread -c Scheduler.c -o Scheduler.o

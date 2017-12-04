@@ -61,6 +61,7 @@ int 		thread_join(thread_t thread, void **retval);
 int 		thread_suspend(thread_t tid);
 int			thread_resume(thread_t tid);
 thread_t 	thread_self();
+int 		thread_exit(void* retval);
 
 void __thread_wait_handler(int signo);
 Thread* __getThread(thread_t tid);

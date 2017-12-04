@@ -8,7 +8,7 @@
 void* __wrapperFunc(void* arg){
 	//!!!!!!!!!! need to confirm !!!!!!!!!!
 	fprintf(stderr, "__wrapperFunc() execute\n");	
-	fprintf(stderr, "i will wait until runnable\n");	
+	
 	void* ret;
 	WrapperArg* pArg = (WrapperArg*)arg;
 	//arg is wrapperArg, need to casting WrapperArg type  
@@ -28,8 +28,10 @@ void* __wrapperFunc(void* arg){
 	is_pushed = true;
 	//push tmp thread in ready queue
 	
+	pthread_mutex_lock(&static_mutex);	
 	pthread_cond_signal(&static_cond);
 	//send signal to parent therad
+	pthread_mutex_unlock(&static_mutex);
 /*
 	sigset_t set;
 	int retSig;
@@ -44,31 +46,40 @@ void* __wrapperFunc(void* arg){
 */	
 	__thread_wait_handler(0);
 	//block until thread is ready to run
-	fprintf(stderr, "child thread will run func (__wrapperFunc())\n");
 
 	void* (*funcPtr)(void*) = pArg->funcPtr;
 	void* funcArg = pArg->funcArg;
-	ret = funcPtr(funcArg);
+	fprintf(stderr, "bbbbbbbbbbbbbbbbbbbb\n");
 	
+	ret = (funcPtr)(funcArg);
+	//위에서 세그폴트가 뜨는것 같음. 수정 필요.
+	
+	fprintf(stderr, "will run func?\n");	
 	return ret;
 }
 
 
 
-int thread_create(thread_t *thread, thread_attr_t *attr, void *(*start_routine) (void *), void *arg){
+int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(void *), void *arg){
 	//make child thread and push in ready queue
 	//!!!!!!!!!! need to confirm !!!!!!!!!!	
+	
 	pthread_t tmp_tid;
 	//for child thread's tid
+	
 	WrapperArg wrapperArg;
 	//for wrapper
+	
 	wrapperArg.funcPtr = start_routine;
 	wrapperArg.funcArg = arg;
 	//set wrapper function, argument
+	
 	fprintf(stderr, "parent create thread right now\n");	
 	signal(SIGUSR1, __thread_wait_handler); 
+	
 	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
 	//create thread and make to execute __wrapperFunc
+	
 	fprintf(stderr, "pthread_create called\n");
 	
 	pthread_mutex_lock(&static_mutex);
@@ -112,12 +123,16 @@ thread_t	thread_self()
 
 void __thread_wait_handler(int signo){
 	//call when send thread at ready queue
+	
 	Thread* tmp;
 	fprintf(stderr, "wait_handler is called (__thread_wait_handler())\n");
+	
 	tmp = __getThread(pthread_self());
 	//get caller's TCB pointer
+	
 	pthread_mutex_lock(&(tmp->readyMutex));
 	//lock mutex
+	
 	fprintf(stderr, "i lock mutex (__thread_wait_handler())\n");
 	while(tmp->bRunnable == false){
 		fprintf(stderr, "caller's bRunnable is false (__thread_wait_handler())\n");

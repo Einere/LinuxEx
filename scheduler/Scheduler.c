@@ -38,6 +38,7 @@ int RunScheduler( void ){
 		}
 		else{
 			fprintf(stderr, "ReadyQHead is NULL (RunScheduler())\n");
+			sleep(1);
 		}
 	}
 }
