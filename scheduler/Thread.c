@@ -11,40 +11,20 @@ void* __wrapperFunc(void* arg){
 	
 	void* ret;
 	WrapperArg* pArg = (WrapperArg*)arg;
-	//arg is wrapperArg, need to casting WrapperArg type  
-	
-	Thread* tmp = (Thread*)malloc(sizeof(Thread));
-	//make TCB
-	tmp->tid = thread_self();
-	tmp->status = THREAD_STATUS_READY;
-	tmp->parentTid = 0; 
-	tmp->bRunnable = false;
-	pthread_mutex_init(&(tmp->readyMutex), NULL);
-	pthread_cond_init(&(tmp->readyCond), NULL);
-	tmp->pPrev = tmp->pNext = NULL;
-	//set information
-	
-	rq_push(tmp);
-	is_pushed = true;
-	//push tmp thread in ready queue
-	
-	pthread_mutex_lock(&static_mutex);	
-	pthread_cond_signal(&static_cond);
-	//send signal to parent therad
-	pthread_mutex_unlock(&static_mutex);
-/*
+	//arg is wrapperArg, need to casting WrapperArg type  	
+
 	sigset_t set;
 	int retSig;
 	//for handler
-	
+	fprintf(stderr, "i will call sigwait (__wrapperFunc())\n");	
 	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
+	sigaddset(&set, SIGUSR2);
 	sigwait(&set, &retSig);
 	fprintf(stderr, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
 	//wait until TCB is pushed in ready queue
-	//if TCB is pushed in ready queue, parent thread send SIGUSR1 to child thread to execute handler
-*/	
-	__thread_wait_handler(0);
+	//if TCB is pushed in ready queue, parent thread send SIGUSR2 to child thread to execute handler
+	
+	//__thread_wait_handler(0);
 	//block until thread is ready to run
 
 	void* (*funcPtr)(void*) = pArg->funcPtr;
@@ -75,23 +55,33 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	//set wrapper function, argument
 	
 	fprintf(stderr, "parent create thread right now\n");	
-	signal(SIGUSR1, __thread_wait_handler); 
+	signal(SIGUSR1, __thread_wait_handler);
+	signal(SIGUSR2, __thread_wait_handler); 
+	//install SIG2 handler
 	
 	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
 	//create thread and make to execute __wrapperFunc
 	
 	fprintf(stderr, "pthread_create called\n");
-	
-	pthread_mutex_lock(&static_mutex);
-	while(is_pushed == false) pthread_cond_wait(&static_cond, &static_mutex);
-	is_pushed = false;
-	pthread_mutex_unlock(&static_mutex);
 
-	fprintf(stderr, "parent received signal from child thread (thread_create())\n");
+	Thread* tmp = (Thread*)malloc(sizeof(Thread));
+	//make TCB
+	tmp->tid = tmp_tid;
+	tmp->status = THREAD_STATUS_READY;
+	tmp->parentTid = thread_self(); 
+	tmp->bRunnable = false;
+	pthread_mutex_init(&(tmp->readyMutex), NULL);
+	pthread_cond_init(&(tmp->readyCond), NULL);
+	tmp->pPrev = tmp->pNext = NULL;
+	//set information
+	
+	rq_push(tmp);
+	//push tmp thread in ready queue
+	
 	*thread = tmp_tid;
 	//call back created thread's tid
-	//printf("parent send signal right now\n");
-	//pthread_kill(tmp_tid, SIGUSR1);
+	printf("parent send signal right now\n");
+	pthread_kill(tmp_tid, SIGUSR2);
 	//make child thread call handler by sending SIGUSR1
 	return 0;
 }
