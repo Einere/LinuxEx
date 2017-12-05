@@ -114,7 +114,7 @@ void __thread_wait_handler(int signo){
 	//call when send thread at ready queue
 	
 	Thread* tmp;
-	fprintf(stderr, "wait_handler is called (__thread_wait_handler())\n");
+	fprintf(stderr, "[%ld]wait_handler is called (__thread_wait_handler())\n", thread_self());
 	
 	tmp = __getThread(pthread_self());
 	//get caller's TCB pointer
@@ -122,16 +122,16 @@ void __thread_wait_handler(int signo){
 	pthread_mutex_lock(&(tmp->readyMutex));
 	//lock mutex
 	
-	fprintf(stderr, "i lock mutex (__thread_wait_handler())\n");
+	fprintf(stderr, "[%ld]i lock mutex (__thread_wait_handler())\n", thread_self());
 	while(tmp->bRunnable == false){
-		fprintf(stderr, "caller's bRunnable is false (__thread_wait_handler())\n");
+		fprintf(stderr, "[%ld]caller's bRunnable is false (__thread_wait_handler())\n", thread_self());
 		pthread_cond_wait(&(tmp->readyCond), &(tmp->readyMutex));
-		fprintf(stderr, "receive signal to wake up (__thread_wait_handler())\n");
+		fprintf(stderr, "[%ld]receive signal to wake up (__thread_wait_handler())\n", thread_self());
 	}
 	//wait until bRunnable be true
 	pthread_mutex_unlock(&(tmp->readyMutex));
 	//unlock mutex
-	fprintf(stderr, "i unlock mutex (__thread_wait_handler())\n");
+	fprintf(stderr, "[%ld]i unlock mutex (__thread_wait_handler())\n", thread_self());
 }
 
 Thread* __getThread(thread_t tid){
@@ -155,7 +155,7 @@ Thread* __getThread(thread_t tid){
 
 void __thread_wakeup(Thread* pTCB){
 	//wake up thread with 1st TCB only when it need to run
-	
+	fprintf(stderr, "thread_wakeup called\n");	
 	pthread_mutex_lock(&(pTCB->readyMutex));
 	//lock mutex
 	pTCB->bRunnable = true;
@@ -171,11 +171,13 @@ void rq_push(Thread *in_TCB){
 	//insert in_TCB at ready queue
 	if(ReadyQHead == NULL){
 		//if ready queue is empty
+		fprintf(stderr, "insert empty ready queue\n");
 		ReadyQHead = in_TCB;
 		ReadyQTail = in_TCB;
 	}
 	else{
 		//if ready queue is not empty
+		fprintf(stderr, "insert after ReadyQTail\n");
 		in_TCB->pPrev = ReadyQTail;
 		//in_TCB link to previous TCB
 		ReadyQTail->pNext = in_TCB;

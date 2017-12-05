@@ -12,15 +12,16 @@ int RunScheduler( void ){
 	while(1){
 		pCurThread = RunQHead;
 		//get running thread's TCB pointer
-
+		
 		if(ReadyQHead != NULL){
 			//if ready queue is not empty	
-			fprintf(stderr, "ready queue is not empyt (RunScheduler())\n");
+			fprintf(stderr, "ready queue is not empty (RunScheduler())\n");
 			
 			if(pCurThread == NULL) fprintf(stderr, "running thread's TCB isn't exist (RunScheduler())\n");
 			
-			if((pNewThread = rq_pop()) == NULL) {
-				//pop 1st TCB in ready queue, get it's pointer
+			//if((pNewThread = rq_pop()) == NULL) {
+			if((pNewThread = ReadyQHead) == NULL){
+				//check any TCB is in ready queue
 				fprintf(stderr, "new thread's TCB isn't exist (RunScheduler())\n");
 				continue;
 				//if ready queue is empty, don't call context switch
@@ -47,10 +48,13 @@ void __ContextSwitch(Thread* pCurThread, Thread* pNewThread){
 	if(pCurThread != NULL){
 		//if current thread is exist
 		fprintf(stderr, "current thread is exist (__ContextSwitch())\n");
+		
+		pCurThread->status = THREAD_STATUS_READY;
+		pCurThread->bRunnable = false;
+		//set stoped thread's status to ready
+
 		pthread_kill(pCurThread->tid, SIGUSR1);
 		//stop running thread
-		pCurThread->status = THREAD_STATUS_READY;
-		//set stoped thread's status to ready
 		rq_push(pCurThread);
 		//push stoped thread at ready queue
 	}
@@ -58,6 +62,7 @@ void __ContextSwitch(Thread* pCurThread, Thread* pNewThread){
 	if(pNewThread != NULL){
 		//if new thread is exist
 		fprintf(stderr, "next thread is exist (__ContextSwitch())\n");
+		pNewThread = rq_pop();
 		__thread_wakeup(pNewThread);
 		//run new thread by waking up
 		//wakeup function change thread's bRunnable and status
