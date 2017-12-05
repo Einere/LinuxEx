@@ -6,10 +6,8 @@
 #include <stdlib.h>
 
 void* __wrapperFunc(void* arg){
-	//!!!!!!!!!! need to confirm !!!!!!!!!!
 	fprintf(stderr, "__wrapperFunc() execute\n");	
 	
-	void* ret;
 	WrapperArg* pArg = (WrapperArg*)arg;
 	//arg is wrapperArg, need to casting WrapperArg type  
 	
@@ -33,27 +31,18 @@ void* __wrapperFunc(void* arg){
 	pthread_cond_signal(&static_cond);
 	//send signal to parent therad
 	pthread_mutex_unlock(&static_mutex);
-/*
-	sigset_t set;
-	int retSig;
-	//for handler
 	
-	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
-	sigwait(&set, &retSig);
-	fprintf(stderr, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
-	//wait until TCB is pushed in ready queue
-	//if TCB is pushed in ready queue, parent thread send SIGUSR1 to child thread to execute handler
-*/	
 	__thread_wait_handler(0);
 	//block until thread is ready to run
 
 	void* (*funcPtr)(void*) = pArg->funcPtr;
 	void* funcArg = pArg->funcArg;
-	fprintf(stderr, "pArg->funcPtr = %p, pArg->funcArg = %p\n", pArg->funcPtr, pArg->funcArg);
+
+	fprintf(stderr, "arg = %p (__wrapperFunc)\n", arg);	
+	fprintf(stderr, "pArg->funcPtr = %p (__wrapperFunc)\n", pArg->funcPtr);	
 	
-	fprintf(stderr, "funcPtr(funcArg) = %d",funcPtr(funcArg));
-	ret = funcPtr(funcArg);
+	//fprintf(stderr, "funcPtr(funcArg) = %d",funcPtr(funcArg));
+	void* ret = funcPtr(funcArg);
 	//위에서 세그폴트가 뜨는것 같음. 수정 필요.
 	
 	fprintf(stderr, "will run func?\n");	
@@ -64,22 +53,23 @@ void* __wrapperFunc(void* arg){
 
 int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(void *), void *arg){
 	//make child thread and push in ready queue
-	//!!!!!!!!!! need to confirm !!!!!!!!!!	
 	
 	pthread_t tmp_tid;
 	//for child thread's tid
 	
-	WrapperArg wrapperArg;
+	WrapperArg *wrapperArg = (WrapperArg*)malloc(sizeof(WrapperArg));
 	//for wrapper
 	
-	wrapperArg.funcPtr = start_routine;
-	wrapperArg.funcArg = arg;
+	wrapperArg->funcPtr = start_routine;
+	wrapperArg->funcArg = arg;
 	//set wrapper function, argument
 	
-	fprintf(stderr, "parent create thread right now\n");	
+	fprintf(stderr, "parent create thread right now (thread_create)\n");	
+	fprintf(stderr, "start_routine address = %p (thread_create)\n", start_routine);	
+	fprintf(stderr, "wrapperArg->funcPtr address = %p (thread_create)\n", wrapperArg->funcPtr);	
 	signal(SIGUSR1, __thread_wait_handler); 
 	
-	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
+	pthread_create(&tmp_tid, NULL, __wrapperFunc, wrapperArg);
 	//create thread and make to execute __wrapperFunc
 	
 	fprintf(stderr, "pthread_create called\n");
@@ -92,9 +82,6 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	fprintf(stderr, "parent received signal from child thread (thread_create())\n");
 	*thread = tmp_tid;
 	//call back created thread's tid
-	//printf("parent send signal right now\n");
-	//pthread_kill(tmp_tid, SIGUSR1);
-	//make child thread call handler by sending SIGUSR1
 	return 0;
 }
 
@@ -202,17 +189,18 @@ Thread* rq_search(pthread_t s_tid){
 	//search TCB by tid in ready queue
 	Thread* tmp;
 	tmp = ReadyQHead;
-	
+	fprintf(stderr, "rq_search - start\n");	
 	while(tmp != NULL){ //or tmp != readyQTail
 		//search until last TCB
 		if(tmp->tid == s_tid){
+			fprintf(stderr, "rq_search - find\n");
 			return tmp;
 		}
 		tmp = tmp->pNext;
 		//advance tmp
 	}
-	
-	return NULL;
+	fprintf(stderr, "rq_search - not founded\n");
+	return tmp;
 	//if not founded
 }
 
