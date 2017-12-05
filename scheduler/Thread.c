@@ -178,8 +178,6 @@ void __thread_wakeup(Thread* pTCB){
 	//set status to run
 	pthread_mutex_unlock(&(pTCB->readyMutex));
 	//unlock mutex
-	
-
 }
 
 void rq_push(Thread *in_TCB){
