@@ -41,9 +41,7 @@ void* __wrapperFunc(void* arg){
 	fprintf(stderr, "arg = %p (__wrapperFunc)\n", arg);	
 	fprintf(stderr, "pArg->funcPtr = %p (__wrapperFunc)\n", pArg->funcPtr);	
 	
-	//fprintf(stderr, "funcPtr(funcArg) = %d",funcPtr(funcArg));
 	void* ret = funcPtr(funcArg);
-	//위에서 세그폴트가 뜨는것 같음. 수정 필요.
 	
 	fprintf(stderr, "will run func?\n");	
 	return ret;
@@ -91,15 +89,25 @@ int 	thread_join(thread_t thread, void **retval)
 }
 
 
-int 	thread_suspend(thread_t tid)
-{
+int thread_suspend(thread_t tid){
+	Thread* tmp = __getThread(tid);
 
+	tmp = rq_remove(tid);
+	wq_push(tmp);
+	tmp->status = THREAD_STATUS_BLOCKED;
+
+	return 0;
 }
 
 
-int	thread_resume(thread_t tid)
-{
+int	thread_resume(thread_t tid){
+	Thread* tmp = __getThread(tid);
 
+	tmp = wq_remove(tid);
+	rq_push(tmp);
+	tmp->status = THREAD_STATUS_READY;
+
+	return 0;
 }
 
 
@@ -214,13 +222,25 @@ Thread* rq_remove(pthread_t r_tid){
 		perror("not exist searching TCB : ");
 		return NULL;
 	}
-	printf("exist searching TCB (tid = %lu)\n",r_tid);
+	printf("exist searching TCB (tid = %lu) (rq_remove)\n",r_tid);
 	
-	if(tmp->pPrev != NULL) tmp->pPrev->pNext = tmp->pNext;
-	//previous TCB link to next TCB
-	if(tmp->pNext != NULL) tmp->pNext->pPrev = tmp->pPrev;
-	//next TCB link to previous TCB
-	printf("link prev and next complete\n");
+	if(tmp->pPrev != NULL){
+		//previous TCB link to next TCB
+		tmp->pPrev->pNext = tmp->pNext;
+		
+		if(tmp->pNext != NULL) ReadyQTail = tmp->pNext;
+		else ReadyQTail = tmp->pPrev;
+	}
+	if(tmp->pNext != NULL){
+		//next TCB link to previous TCB
+		tmp->pNext->pPrev = tmp->pPrev;
+
+		if(tmp->pPrev != NULL) ReadyQHead = tmp->pPrev;
+		else ReadyQHead = tmp->pNext;
+	}
+	if(tmp->pPrev == NULL && tmp->pNext == NULL) ReadyQHead = ReadyQTail = NULL;
+
+	printf("link prev and next complete (rq_remove)\n");
 
 	tmp->pPrev = NULL;
 	tmp->pNext = NULL;
@@ -258,38 +278,39 @@ void print_rq(){
 }
 
 void wq_push(Thread *in_TCB){
-	//insert in_TCB at wait queue
 	if(WaitQHead == NULL){
 		//if wait queue is empty
+		fprintf(stderr, "insert empty wait queue\n");
 		WaitQHead = in_TCB;
 		WaitQTail = in_TCB;
 	}
 	else{
 		//if wait queue is not empty
+		fprintf(stderr, "insert after WaitQTail\n");
 		in_TCB->pPrev = WaitQTail;
 		//in_TCB link to previous TCB
 		WaitQTail->pNext = in_TCB;
 		//previous TCB link to in_TCB
 		WaitQTail = WaitQTail->pNext;
-		//advance WaitQTail
+		//advance ReadyQTail
 	}
 }
 
 Thread* wq_search(pthread_t s_tid){
-	//search TCB by tid in wait queue
 	Thread* tmp;
 	tmp = WaitQHead;
-	
-	while(tmp != NULL){ //or tmp != WaitQTail
+	fprintf(stderr, "wq_search - start\n");	
+	while(tmp != NULL){ 
 		//search until last TCB
 		if(tmp->tid == s_tid){
+			fprintf(stderr, "wq_search - find\n");
 			return tmp;
 		}
 		tmp = tmp->pNext;
 		//advance tmp
 	}
-	
-	return NULL;
+	fprintf(stderr, "wq_search - not founded\n");
+	return tmp;
 	//if not founded
 }
 
@@ -302,11 +323,23 @@ Thread* wq_remove(pthread_t r_tid){
 		return NULL;
 	}
 	printf("exist searching TCB (tid = %lu)\n",r_tid);
-	
-	if(tmp->pPrev != NULL) tmp->pPrev->pNext = tmp->pNext;
-	//previous TCB link to next TCB
-	if(tmp->pNext != NULL) tmp->pNext->pPrev = tmp->pPrev;
-	//next TCB link to previous TCB
+
+	if(tmp->pPrev != NULL){
+		//previous TCB link to next TCB
+		tmp->pPrev->pNext = tmp->pNext;
+		
+		if(tmp->pNext != NULL) WaitQTail = tmp->pNext;
+		else WaitQTail = tmp->pPrev;
+	}
+	if(tmp->pNext != NULL){
+		//next TCB link to previous TCB
+		tmp->pNext->pPrev = tmp->pPrev;
+
+		if(tmp->pPrev != NULL) WaitQHead = tmp->pPrev;
+		else WaitQHead = tmp->pNext;
+	}
+	if(tmp->pPrev == NULL && tmp->pNext == NULL) WaitQHead = WaitQTail = NULL;
+
 	printf("link prev and next complete\n");
 
 	tmp->pPrev = NULL;
