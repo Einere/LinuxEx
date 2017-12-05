@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(void*), void* arg){
+	pthread_t tmp_tid;
 	WrapperArg wrapperArg;
 	wrapperArg.funcPtr = start_routine;
 	wrapperArg.funcArg = arg;
@@ -13,14 +14,15 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	fprintf(stderr, "parent create thread right now\n");
 	
 	signal(SIGUSR1, __thread_wait_handler);
-	pthread_create(&thread, NULL, __wrapperFunc, &wrapperArg);
+	pthread_create(&tmp_tid, NULL, __wrapperFunc, &wrapperArg);
 
 	fprintf(stderr, "pthread_create called\n");
 		
 	Thread* tmp = (Thread*)malloc(sizeof(Thread));
 	//make TCB
-	
-	tmp->tid = thread;
+
+
+	tmp->tid = tmp_tid;
 	tmp->status = THREAD_STATUS_READY;
 	tmp->parentTid = thread_self();
 	tmp->bRunnable = false;
@@ -31,6 +33,7 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	rq_push(tmp);
 	is_pushed = true;
 
+	*thread = tmp_tid;
 /*
 	pthread_mutex_lock(&static_mutex);
 	while(is_pushed == false) pthread_cond_wait(&static_cond, &static_mutex);
@@ -38,7 +41,7 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	pthread_mutex_unlock(&static_mutex);
 */	
 	fprintf(stderr, "parent send signal to child right now (thread_create)\n");
-	pthread_kill(thread, SIGUSR1);
+	pthread_kill(tmp_tid, SIGUSR1);
 
 	fprintf(stderr, "parent received signal from child thread (thread_create)\n");
 
