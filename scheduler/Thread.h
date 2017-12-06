@@ -31,7 +31,7 @@ typedef struct _Thread {
 } Thread;	
 
 /* wrapper */
-void* __wrapperFunc(void* arg);
+
 typedef struct __wrapperArg {
    void* (*funcPtr)(void*);
    void* funcArg;

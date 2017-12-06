@@ -21,6 +21,7 @@ Thread*     RunQHead;
 JoinStr* JoinQHead;
 JoinStr* JoinQTail;
 
+void* __wrapperFunc(void* arg);
 
 void __thread_wait_handler(int signo);
 Thread* __getThread(thread_t tid);

@@ -8,7 +8,6 @@
 #include <stdio.h>
 
 void* __wrapperFunc(void* arg){
-	//fprintf(stderr, "__wrapperFunc() execute\n");	
 	
 	WrapperArg* pArg = (WrapperArg*)arg;
 	//arg is wrapperArg, need to casting WrapperArg type  
@@ -116,14 +115,9 @@ int thread_join(thread_t thread, void **retval){
 		JCB->parentTid = thread_self();
 		__thread_wait_handler(0);
 	}
-	
-	fprintf(stderr, "i wake up for reaping child thread\n");
 
 	*retval = c_TCB->pExitCode;
 	
-	//rq_remove(thread);
-	//wq_remove(thread);
-	//jq_remove(thread);
 	if(c_TCB != NULL){
 		rq_remove(thread);
 		free(c_TCB);
@@ -139,7 +133,6 @@ int thread_join(thread_t thread, void **retval){
 
 int thread_exit(void* retval){
 	Thread* c_TCB;
-	fprintf(stderr, "thread_exit is called ************************** (thread_exit)\n");	
 	if((c_TCB = __getThread(thread_self())) == NULL) c_TCB = RunQHead;
 	//if caller is running thread
 	
@@ -151,27 +144,25 @@ int thread_exit(void* retval){
 
 	if(p_TCB != NULL){
 		//parent's TCB is exist
-		fprintf(stderr, "parent TCB isn't NULL (thread_exit)\n");
-		
+		//fprintf(stderr, "parent TCB isn't NULL (thread_exit)\n");
 		if(JCB->parentTid == c_TCB->parentTid){
 			//child is joined
-			//__thread_wakeup(p_TCB);
 			wq_remove(c_TCB->parentTid);
 			rq_push(p_TCB);
-			fprintf(stderr, "pass ready queue joined parent (thread_exit)\n");
+			//fprintf(stderr, "pass ready queue joined parent (thread_exit)\n");
 			//wake up parent
 		}
 		else{
 			//child isn't joined yet
 			JCB->parentTid = c_TCB->parentTid;
-			fprintf(stderr, "no parent joined me (thread_exit)\n");
+			//fprintf(stderr, "no parent joined me (thread_exit)\n");
 		}
 	}
 	else{
-		fprintf(stderr, "parent TCB is NULL (thread_exit)\n");
+		//fprintf(stderr, "parent TCB is NULL (thread_exit)\n");
 	}
 	c_TCB->pExitCode = retval;
-	fprintf(stderr, "i will die soon (thread_exit)\n");
+	//fprintf(stderr, "i will die soon (thread_exit)\n");
 	return 0;
 }
 
@@ -185,7 +176,6 @@ int thread_suspend(thread_t tid){
 	return 0;
 }
 
-
 int	thread_resume(thread_t tid){
 	Thread* tmp = __getThread(tid);
 
@@ -196,11 +186,7 @@ int	thread_resume(thread_t tid){
 	return 0;
 }
 
-
-
-
-thread_t	thread_self()
-{
+thread_t thread_self(){
 	return pthread_self();	
 }	
 
