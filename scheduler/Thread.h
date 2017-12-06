@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define TIMESLICE	(2)
+#define TIMESLICE	(1)
 
 
 typedef int BOOL;
@@ -26,7 +26,7 @@ typedef enum{
 typedef struct _Thread Thread;
 typedef struct _Thread {
 	ThreadStatus		status;
-	void*               pEixtCode;
+	void*               pExitCode;
     pthread_t			tid;
     pthread_cond_t     	readyCond;
    	BOOL				bRunnable;

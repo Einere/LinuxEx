@@ -31,12 +31,13 @@ void
 TestCase1(void)
 {
 	thread_t tid[TOTAL_THREAD_NUM];
-	
-	thread_create(&tid[0], NULL, (void*)Tc1ThreadProc, (void*)1);
-	thread_create(&tid[1], NULL, (void*)Tc1ThreadProc, (void*)2);
-	thread_create(&tid[2], NULL, (void*)Tc1ThreadProc, (void*)3);
-	thread_create(&tid[3], NULL, (void*)Tc1ThreadProc, (void*)4);
-	thread_create(&tid[4], NULL, (void*)Tc1ThreadProc, (void*)5);
+	int i1 = 1, i2 = 2, i3 = 3, i4 = 4, i5 = 5;
+
+	thread_create(&tid[0], NULL, (void*)Tc1ThreadProc, (void*)&i1);
+	thread_create(&tid[1], NULL, (void*)Tc1ThreadProc, (void*)&i2);
+	thread_create(&tid[2], NULL, (void*)Tc1ThreadProc, (void*)&i3);
+	thread_create(&tid[3], NULL, (void*)Tc1ThreadProc, (void*)&i4);
+	thread_create(&tid[4], NULL, (void*)Tc1ThreadProc, (void*)&i5);
 
 	while(1){}
 	

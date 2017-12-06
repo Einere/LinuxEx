@@ -29,19 +29,20 @@ TestCase2(void)
 	thread_t tid[TOTAL_THREAD_NUM];
 	int result[TOTAL_THREAD_NUM];
 
-	int i = 0;
-	thread_create(&tid[0], NULL, (void*)Tc2ThreadProc,(void*) 1);	
-	thread_create(&tid[1], NULL, (void*)Tc2ThreadProc,(void*) 2);	
-	thread_create(&tid[2], NULL, (void*)Tc2ThreadProc,(void*) 3);	
-	thread_create(&tid[3], NULL, (void*)Tc2ThreadProc,(void*) 4);	
-	thread_create(&tid[4], NULL, (void*)Tc2ThreadProc,(void*) 5);
+	int i = 0, i1 = 1, i2 = 2, i3 = 3, i4 = 4, i5 = 5;
+
+	thread_create(&tid[0], NULL, (void*)Tc2ThreadProc,(void*) &i1);	
+	thread_create(&tid[1], NULL, (void*)Tc2ThreadProc,(void*) &i2);	
+	thread_create(&tid[2], NULL, (void*)Tc2ThreadProc,(void*) &i3);	
+	thread_create(&tid[3], NULL, (void*)Tc2ThreadProc,(void*) &i4);	
+	thread_create(&tid[4], NULL, (void*)Tc2ThreadProc,(void*) &i5);
 	
 	for(i=0;i<TOTAL_THREAD_NUM;i++)
 	{
-		int retVal;
+		int* retVal;
 		thread_join(tid[i],(void **)&retVal);
 
-		printf("Thread [ %d ] is finish Return : [ %d ] ",(int)tid[i], retVal);
+		printf("Thread [ %d ] is finish Return : [ %d ] ",(int)tid[i], *retVal);
 	}
 
 	return ;
