@@ -75,7 +75,7 @@ TestCase3(void)
 		int* retVal;
 		thread_join(tid[i],(void **)&retVal);
 
-		printf("Thread [ %d ] is finish Return : [ %d ] ",(int)tid[i], *retVal);
+		printf("Thread [ %d ] is finish Return : [ %d ]\n",(int)tid[i], *retVal);
 	}
 
 	return ;

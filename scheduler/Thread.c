@@ -92,7 +92,7 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 int thread_join(thread_t thread, void **retval){
 	//parent thread block until child thread exit
 
-	fprintf(stderr, "thread_join called\n");
+	//fprintf(stderr, "thread_join called\n");
 	Thread* p_TCB = __getThread(thread_self());
 	//get parent's TCB
 	Thread* c_TCB = __getThread(thread);
