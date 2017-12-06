@@ -1,9 +1,11 @@
 #include "Thread.h"
 #include "Init.h"
 #include "Scheduler.h"
+#include "Helper.h"
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void* __wrapperFunc(void* arg){
 	//fprintf(stderr, "__wrapperFunc() execute\n");	
@@ -12,7 +14,8 @@ void* __wrapperFunc(void* arg){
 	//arg is wrapperArg, need to casting WrapperArg type  
 	
 	Thread* tmp = (Thread*)malloc(sizeof(Thread));
-	//make TCB
+	JoinStr* tmp_j = (JoinStr*)malloc(sizeof(JoinStr));
+	//make TCB and Join
 
 	tmp->tid = thread_self();
 	tmp->status = THREAD_STATUS_READY;
@@ -21,9 +24,13 @@ void* __wrapperFunc(void* arg){
 	pthread_mutex_init(&(tmp->readyMutex), NULL);
 	pthread_cond_init(&(tmp->readyCond), NULL);
 	tmp->pPrev = tmp->pNext = NULL;
+	tmp_j->tid = thread_self();
+	tmp_j->parentTid = 0;
+	tmp_j->pPrev = tmp_j->pNext = NULL;
 	//set information
 	
 	rq_push(tmp);
+	jq_push(tmp_j);
 	is_pushed = true;
 	//push tmp thread in ready queue
 	
@@ -74,6 +81,7 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 	pthread_mutex_lock(&static_mutex);
 	while(is_pushed == false) pthread_cond_wait(&static_cond, &static_mutex);
 	is_pushed = false;
+	__getThread(tmp_tid)->parentTid = thread_self();
 	pthread_mutex_unlock(&static_mutex);
 
 	//fprintf(stderr, "parent received signal from child thread (thread_create())\n");
@@ -84,52 +92,86 @@ int thread_create(thread_t *thread, thread_attr_t *attr, void* (*start_routine)(
 
 int thread_join(thread_t thread, void **retval){
 	//parent thread block until child thread exit
-	
+
+	fprintf(stderr, "thread_join called\n");
 	Thread* p_TCB = __getThread(thread_self());
 	//get parent's TCB
 	Thread* c_TCB = __getThread(thread);
 	//get child's TCB
-	
-	p_TCB->status = THREAD_STATUS_ZOMBIE;
-	//set parent's status zombie
-	//because ditermine whether parent has joined
-	if(p_TCB == NULL) p_TCB = RunQHead;
-	//if parent's TCB isn't exist in queue
+	RunQHead = NULL;
 	wq_push(p_TCB);
 	if(p_TCB == NULL) RunQHead = NULL;
+	//because parent must be running
+	
+	JoinStr* JCB;
+	if((JCB = jq_search(thread)) == NULL) fprintf(stderr, "child's JoinStr isn't exist\n");
 	
 	p_TCB->bRunnable = false;
-	__thread_wait_handler(0);
-
-	wq_remove(thread_self());
-	rq_push(p_TCB);
-	p_TCB->status = THREAD_STATUS_READY;
+	
+	if(JCB->parentTid == thread_self()){
+		//if child exit befor join, don't call handler
+	}
+	else if(JCB->parentTid == NULL){
+		//if child exit after join
+		JCB->parentTid = thread_self();
+		__thread_wait_handler(0);
+	}
+	
+	fprintf(stderr, "i wake up for reaping child thread\n");
 
 	*retval = c_TCB->pExitCode;
 	
-	rq_remove(thread);
-	if(c_TCB != NULL) free(c_TCB);
-
+	//rq_remove(thread);
+	//wq_remove(thread);
+	//jq_remove(thread);
+	if(c_TCB != NULL){
+		rq_remove(thread);
+		free(c_TCB);
+	}
+	if(JCB != NULL){
+		jq_remove(thread);
+		free(JCB);
+	}
+	//remove TCB and JCB, free memory
+	
 	return 0;
 }
 
 int thread_exit(void* retval){
 	Thread* c_TCB;
-	//fprintf(stderr, "thread_exit is called ************************** (thread_exit)\n");	
+	fprintf(stderr, "thread_exit is called ************************** (thread_exit)\n");	
 	if((c_TCB = __getThread(thread_self())) == NULL) c_TCB = RunQHead;
 	//if caller is running thread
 	
 	Thread* p_TCB = __getThread(c_TCB->parentTid);
 	//get parent's TCB
+	
+	JoinStr* JCB = jq_search(thread_self());
+	//get child's JCB
 
 	if(p_TCB != NULL){
-		//fprintf(stderr, "parent TCB isn't NULL (thread_exit)\n");
-		if(p_TCB->status == THREAD_STATUS_ZOMBIE){
-			__thread_wakeup(p_TCB);
+		//parent's TCB is exist
+		fprintf(stderr, "parent TCB isn't NULL (thread_exit)\n");
+		
+		if(JCB->parentTid == c_TCB->parentTid){
+			//child is joined
+			//__thread_wakeup(p_TCB);
+			wq_remove(c_TCB->parentTid);
+			rq_push(p_TCB);
+			fprintf(stderr, "pass ready queue joined parent (thread_exit)\n");
 			//wake up parent
 		}
+		else{
+			//child isn't joined yet
+			JCB->parentTid = c_TCB->parentTid;
+			fprintf(stderr, "no parent joined me (thread_exit)\n");
+		}
+	}
+	else{
+		fprintf(stderr, "parent TCB is NULL (thread_exit)\n");
 	}
 	c_TCB->pExitCode = retval;
+	fprintf(stderr, "i will die soon (thread_exit)\n");
 	return 0;
 }
 
@@ -323,7 +365,7 @@ Thread* rq_pop(){
 void print_rq(){
 	Thread* iter = ReadyQHead;
 	while(iter != NULL){
-		printf("tid = %lu\n", iter->tid);
+		printf("tid = %d\n", (int)iter->tid);
 		iter = iter->pNext;
 
 	}
@@ -425,10 +467,111 @@ Thread* wq_pop(){
 void print_wq(){
 	Thread* iter = WaitQHead;
 	while(iter != NULL){
-		printf("tid = %lu\n", iter->tid);
+		printf("tid = %d\n", (int)iter->tid);
 		iter = iter->pNext;
 
 	}
 	printf("print wait queue end\n");
+}
+
+void jq_push(JoinStr* in_JCB){
+	if(JoinQHead == NULL){
+		//if wait queue is empty
+		//fprintf(stderr, "insert empty wait queue\n");
+		JoinQHead = in_JCB;
+		JoinQTail = in_JCB;
+	}
+	else{
+		//if wait queue is not empty
+		//fprintf(stderr, "insert after WaitQTail\n");
+		in_JCB->pPrev = JoinQTail;
+		//in_TCB link to previous TCB
+		JoinQTail->pNext = in_JCB;
+		//previous TCB link to in_TCB
+		JoinQTail = JoinQTail->pNext;
+		//advance ReadyQTail
+	}
+}
+
+JoinStr* jq_search(pthread_t s_tid){
+	JoinStr* tmp;
+	tmp = JoinQHead;
+	//fprintf(stderr, "wq_search - start\n");	
+	while(tmp != NULL){ 
+		//search until last TCB
+		if(tmp->tid == s_tid){
+			//fprintf(stderr, "wq_search - find\n");
+			return tmp;
+		}
+		tmp = tmp->pNext;
+		//advance tmp
+	}
+	//fprintf(stderr, "wq_search - not founded\n");
+	return tmp;
+	//if not founded
+}
+
+JoinStr* jq_remove(pthread_t r_tid){
+	//remove corresponding TCB from wait queue
+	JoinStr* tmp;
+	
+	if((tmp = jq_search(r_tid)) == NULL){
+		perror("not exist searching TCB : ");
+		return NULL;
+	}
+	//printf("exist searching TCB (tid = %lu)\n",r_tid);
+
+	if(tmp->pPrev != NULL){
+		//previous TCB link to next TCB
+		tmp->pPrev->pNext = tmp->pNext;
+		
+		if(tmp->pNext != NULL) JoinQTail = tmp->pNext;
+		else JoinQTail = tmp->pPrev;
+	}
+	if(tmp->pNext != NULL){
+		//next TCB link to previous TCB
+		tmp->pNext->pPrev = tmp->pPrev;
+
+		if(tmp->pPrev != NULL) JoinQHead = tmp->pPrev;
+		else JoinQHead = tmp->pNext;
+	}
+	if(tmp->pPrev == NULL && tmp->pNext == NULL) JoinQHead = JoinQTail = NULL;
+
+	//printf("link prev and next complete\n");
+
+	tmp->pPrev = NULL;
+	tmp->pNext = NULL;
+	//init tmp
+	
+	return tmp;
+}
+
+JoinStr* jq_pop(){
+	//pop head TCB from wait queue
+	JoinStr* tmp;
+	tmp = JoinQHead;
+
+	if(tmp == NULL){
+		perror("not exist TCB in wait queue : ");
+		return NULL;
+	}
+
+	tmp->pNext->pPrev = NULL;
+	//next TCB unlink to tmp
+	JoinQHead = tmp->pNext;
+	//advance WaitQHead
+	tmp->pNext = NULL;
+	//tmp unlink to next TCB
+	
+	return tmp;
+}
+
+void print_jq(){
+	JoinStr* iter = JoinQHead;
+	while(iter != NULL){
+		printf("tid = %d\n", (int)iter->tid);
+		iter = iter->pNext;
+	}
+	printf("print join queue end\n");
 }
 

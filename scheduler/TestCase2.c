@@ -7,7 +7,7 @@ void* Tc2ThreadProc(void* param)
 		int i;
 		int* retVal;
 		tid = thread_self();
-	    for(int i=0;i<10;i++){
+	    for(int i=0;i<2;i++){
 	    	         sleep(2);
                      printf("Tc1ThreadProc: my thread id (%d), arg is (%d)\n", (int)tid, *((int*)param));
                      count++;
@@ -30,7 +30,7 @@ TestCase2(void)
 	int result[TOTAL_THREAD_NUM];
 
 	int i = 0, i1 = 1, i2 = 2, i3 = 3, i4 = 4, i5 = 5;
-
+	fprintf(stderr,"<%ld>\n", pthread_self());
 	thread_create(&tid[0], NULL, (void*)Tc2ThreadProc,(void*) &i1);	
 	thread_create(&tid[1], NULL, (void*)Tc2ThreadProc,(void*) &i2);	
 	thread_create(&tid[2], NULL, (void*)Tc2ThreadProc,(void*) &i3);	
