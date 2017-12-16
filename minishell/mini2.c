@@ -19,37 +19,44 @@
 static char inpbuf[MAXBUF], tokbuf[2*MAXBUF], *ptr = inpbuf, *tok = tokbuf;
 char *prompt = "Command > ";
 static char special[] = {' ','\t','&',';','\n','\0'};
-/*
-struct dirent {
-		ino_t          d_ino;      // Inode number 
-		off_t          d_off;      // Not an offset; see below 
-		unsigned short d_reclen;   // Length of this record 
-		unsigned char  d_type;     // Type of file; not supported by all filesystem types
-		char           d_name[256]; // Null-terminated filename 
-};
-*/
 int inarg(char c);
 int runcommand(char **cline, int where);
 void usr_ls();
 
 int userin(char *p){
-	int c, count;
+	int c, count = 0, i = 0;
     ptr = inpbuf;
     tok = tokbuf;
     printf("%s", p);
-    count = 0;
-    while(1){
+    
+	while(1){
         if((c = getch()) == EOF) {
 			//getch or getchar
             printf("eof = %c\n", c);
             return (EOF);
         }
-		fprintf(stderr, "%c", c);
-
+		
+		
         if (count < MAXBUF){
-			//insert character at inpbuf one by one
-			inpbuf[count++] = c;
-			//fprintf(stderr, "count = %d, c = %c\n", count-1, c);
+			//insert c at inpbuf one by one
+			if(c == '\t'){
+				//if c is tap
+				//need to implement auto-complete
+			}
+			if(c == 127){
+				//if c is back space
+				if(count > 0){
+					count--;
+					inpbuf[count] = '\0';
+					fprintf(stderr, "\b \b");
+				}
+			}
+			else inpbuf[count++] = c;
+
+			fprintf(stderr, "%c", c);
+			//for(i = 0; inpbuf[i] != '\0'; i++){
+			//	fprintf(stderr, "%c", inpbuf[i]);
+			//}
 		}
         if (c == '\n' && count < MAXBUF){
         	inpbuf[count] = '\0';
