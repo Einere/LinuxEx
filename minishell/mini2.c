@@ -36,6 +36,15 @@ int userin(char *p){
             return (EOF);
         }
 		
+		if(c == 27){
+			if((c = getch()) == 91){
+				c = getch();
+				if(c == 65 || c == 66 || c == 67 || c == 68){
+					//if typed arrow key
+					continue;
+				}
+			}
+		}
 		
         if (count < MAXBUF){
 			//insert c at inpbuf one by one
