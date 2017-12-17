@@ -69,9 +69,9 @@ int userin(char *p){
 		}
         if (c == '\n' && count < MAXBUF){
         	inpbuf[count] = '\0';
-			for(int i=0; i<=count; i++){
-				fprintf(stderr, "inpbuf[i] = %c\n", inpbuf[i]);
-			}
+			//for(int i=0; i<=count; i++){
+			//	fprintf(stderr, "inpbuf[i] = %c\n", inpbuf[i]);
+			//}
 			if(inpbuf[count-2] == 'q') exit(1);
 			//if user type '~~~q\n', exit 
 			return count;
@@ -162,9 +162,10 @@ int runcommand(char **cline, int where){
 		perror("smallsh");
 		return(-1);
 	case 0:
-		for(int i=0; cline[i] != NULL; i++){
-			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
-		}
+		//child process
+		//for(int i=0; cline[i] != NULL; i++){
+		//	fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
+		//}
 		if((strcmp(cline[0], "ls")) == 0 && cline[1] == NULL){
 			//cline[0] = "usr_ls";
 			usr_ls();
@@ -173,12 +174,18 @@ int runcommand(char **cline, int where){
 		perror(*cline);
 		exit(1);
 	}
+	//parent process	
 	if(where == BACKGROUND) {
-		printf("[Process id %d]\n", pid);
+		printf("child's pid = %d\n", pid);
 		return(0);
+	}else if(waitpid(pid, &status, 0) == -1){
+
+		return(-1);
 	}
-	if(waitpid(pid, &status, 0) == -1)	return(-1);
-	else return (status);
+	else{
+		//fprintf(stderr, "i will reap my child\n");
+		return (status);
+	}
 }
 
 void usr_ls(){
@@ -200,6 +207,5 @@ void usr_ls(){
 }
 
 int main(){
-	while(userin(prompt) != EOF)
-	procline();
+	while(userin(prompt) != EOF) procline();
 }
