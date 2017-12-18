@@ -30,7 +30,8 @@ int userin(char *p){
     ptr = inpbuf;
     tok = tokbuf;
     printf("%s", p);
-    
+    bool double_tab = false;
+
 	while(1){
         if((c = getch()) == EOF) {
 			//getch or getchar
@@ -39,12 +40,10 @@ int userin(char *p){
         }
 		
 		if(c == 27){
+			//if typed arrow key
 			if((c = getch()) == 91){
 				c = getch();
-				if(c == 65 || c == 66 || c == 67 || c == 68){
-					//if typed arrow key
-					continue;
-				}
+				if(c == 65 || c == 66 || c == 67 || c == 68) continue;
 			}
 		}
 		
@@ -59,6 +58,7 @@ int userin(char *p){
 				}
 			}
 			else inpbuf[count++] = c;
+			//if c isn't back space, insert inpbuf
 			
 			if(c == '\t'){
 				//if c is tap
@@ -69,77 +69,87 @@ int userin(char *p){
 				//ptr = inpbuf, tok = tokbuf;
 				char same_list[10][256];
 				bool flag = false;
-				
+				int len = 0;
+
 				count--;
 				inpbuf[count] = '\n';
 				ptr = inpbuf, tok = tokbuf;
-				do{
-					//fprintf(stderr, "tmp_narg = %d.\n", tmp_narg);
-					tmp_type = gettok(&tmp[tmp_narg]);
-					if(tmp_narg < MAXARG) tmp_narg++;
-				}while(tmp_type == ARG);
-				tmp_narg--;
-				int len = strlen(tmp[tmp_narg-1]);
-				//fprintf(stderr,"last-1 token = %s.\n", tmp[tmp_narg-1]);
 				
+				if(!double_tab){
+					//if first tab, get token
+					do{
+						//fprintf(stderr, "tmp_narg = %d.\n", tmp_narg);
+						tmp_type = gettok(&tmp[tmp_narg]);
+						if(tmp_narg < MAXARG) tmp_narg++;
+					}while(tmp_type == ARG);
+					tmp_narg--;
+					len = strlen(tmp[tmp_narg-1]);
+					//fprintf(stderr,"last-1 token = %s.\n", tmp[tmp_narg-1]);
+				}
+
 				struct dirent* dentry;
 				DIR* dirp;
 				char cwd[50];
 
 				getcwd(cwd, sizeof(cwd));
 				//fprintf(stderr, "cwd = %s\n", cwd);
-
+				fprintf(stderr, "\n");
 				if((dirp = opendir(cwd)) == NULL) perror("open directory");
 				while((dentry = readdir(dirp)) != NULL){
-					//fprintf(stderr, "strlen(tmp[tmp_narg-1]) = %ld\n", strlen(tmp[tmp_narg-1]));
-					if(strncmp(tmp[tmp_narg-1], dentry->d_name, len) ==0) flag = true;
-					else flag = false;
+					if(!double_tab){
+						//if first tab, compare token with d_name
+						//fprintf(stderr, "strlen(tmp[tmp_narg-1]) = %ld\n", strlen(tmp[tmp_narg-1]));
+						if(strncmp(tmp[tmp_narg-1], dentry->d_name, len) ==0) flag = true;
+						else flag = false;
 
-					//fprintf(stderr, "tmp[tmp_narg-1][%d] = %c, dentry->d_name[%d] = %c\n", i, tmp[tmp_narg-1][i], i, dentry->d_name[i]); 
-					if(len < strlen(dentry->d_name) && flag){
-						strncpy(same_list[same_count], dentry->d_name, sizeof(same_list[same_count]));
-						//fprintf(stderr, "\nsame_list[same_count] = %s, same_count = %d.\n\n", same_list[same_count], same_count);
-						same_count++;
+						//fprintf(stderr, "tmp[tmp_narg-1][%d] = %c, dentry->d_name[%d] = %c\n", i, tmp[tmp_narg-1][i], i, dentry->d_name[i]); 
+						if(len < strlen(dentry->d_name) && flag){
+							strncpy(same_list[same_count], dentry->d_name, sizeof(same_list[same_count]));
+							//fprintf(stderr, "\nsame_list[same_count] = %s, same_count = %d.\n\n", same_list[same_count], same_count);
+							same_count++;
+						}
+					}else{
+						//if double tab, print d_name at terminal
+						if(strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0) 
+							fprintf(stderr, "%s ", dentry->d_name);
 					}
 				}
-
-
-				if(same_count > 0){
-					int i = 0;
-					int j = 0;
-					same_size = strlen(same_list[0]);
-					if(same_count == 1){
-						fprintf(stderr, "%s", same_list[0]);
-					}
-					else{
-						flag = true;
-						do{
-							for(i = 0; i < same_count; i++){
-								for(j = i + 1; j < same_count; j++){
-									if(strncmp(same_list[i], same_list[j], same_size) != 0){
-										same_size--;
-										flag = true;
-									}else flag = false;
+				if(!double_tab){
+					//if first tab, insert same character at inpbuf
+					if(same_count > 0){
+						int i = 0;
+						int j = 0;
+						same_size = strlen(same_list[0]);
+						if(same_count == 1){ fprintf(stderr, "%s", same_list[0]); }
+						else{
+							flag = true;
+							do{
+								for(i = 0; i < same_count; i++){
+									for(j = i + 1; j < same_count; j++){
+										if(strncmp(same_list[i], same_list[j], same_size) != 0){
+											same_size--;
+											flag = true;
+										}else flag = false;
+									}
 								}
-							}
-							//fprintf(stderr, "same_size = %d\n", same_size);
-						}while(flag);
+								//fprintf(stderr, "same_size = %d\n", same_size);
+							}while(flag);
 						
+						}
+						for(i = len; i < same_size; i++) {
+							inpbuf[count++] = same_list[0][i];
+							fprintf(stderr, "%c", same_list[0][i]);
+						}
 					}
-					for(i = len; i < same_size; i++) {
-						inpbuf[count++] = same_list[0][i];
-						fprintf(stderr, "%c", same_list[0][i]);
-					}
+					double_tab = true;
+				}else{
+					//if double tab, set double_tab to be false
+					double_tab = false;
 				}
-
-			
 			}
 			
-			
 			if(c != '\t') fprintf(stderr, "%c", c);
-			//for(i = 0; inpbuf[i] != '\0'; i++){
-			//	fprintf(stderr, "%c", inpbuf[i]);
-			//}
+			//if user type key, print at terminal except tab
 		}
         
 		if (c == '\n' && count < MAXBUF){
