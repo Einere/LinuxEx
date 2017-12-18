@@ -27,7 +27,7 @@ char *prompt = "Command > ";
 static char special[] = {' ','\t','&',';','\n','\0', '>', '<'};
 
 int inarg(char c);
-int runcommand(char **cline, int where);
+int runcommand(char **cline, int where, int narg);
 void usr_ls();
 int gettok(char **outptr);
 
@@ -162,7 +162,7 @@ int userin(char *p){
 			//if c in enter
         	inpbuf[count] = '\0';
 			for(int i=0; i<=count; i++){
-				fprintf(stderr, "inpbuf[i] = %c.\n", inpbuf[i]);
+				//fprintf(stderr, "inpbuf[i] = %c.\n", inpbuf[i]);
 			}
 			if(inpbuf[count-2] == 'q') exit(1);
 			//if user type '~~~q\n', exit 
@@ -249,7 +249,7 @@ int procline(void){
 				//if user type any command
 				arg[narg] = NULL;
 				//set final element is null. for exec function
-				runcommand(arg , type);
+				runcommand(arg , type, narg);
 			}
 			
 			if (toktype == EOL){
@@ -261,51 +261,50 @@ int procline(void){
 	}
 }
 
-int runcommand(char **cline, int where){
+int runcommand(char **cline, int where, int narg){
 	int pid;
 	int status;
 	int out_redir_index = 0;
 	int in_redir_index = 0;
 	int out_fd, in_fd;
+	bool set_in_fd = false;
 	switch(pid = fork()) {
 	case -1:
 		perror("smallsh");
 		return(-1);
 	case 0:
 		//child process
-		//for(int i=0; cline[i] != NULL; i++){
-		//	fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
-		//}
+		for(int i=0; cline[i] != '\0'; i++){
+			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
+		}
+		fprintf(stderr, "narg = %d\n", narg);
 		if((strcmp(cline[0], "ls")) == 0 && cline[1] == NULL){
-			//cline[0] = "usr_ls";
 			usr_ls();
 		}
 		
-		for(int i = 0; cline[i] != '\0'; i++){
-			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
-			if(strcmp(cline[i], ">") == 0){
+		//for(int i = 0; cline[i] != '\0' ; i++){
+		for(int i = 0; i < narg; i++){	
+			//fprintf(stderr, "> , cline[%d] = %s, narg-i = %d\n", i, cline[i], narg-i);
+			if(cline[i] != '\0' && strcmp(cline[i], ">") == 0){
 				out_redir_index = i;
 				//fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
+				if((out_fd = open(cline[out_redir_index+1], O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0644)) < 0) perror("failed to open file");
+				dup2(out_fd, 1);
+				cline[out_redir_index+1] = '\0';
+				cline[out_redir_index] = '\0';
+				i++;
 			}
-			else if(strcmp(cline[i], "<") == 0){
-				in_redir_index = i;
-				//fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", i, cline[i][0], in_redir_index);
+			else if(strcmp(cline[narg - i - 1], "<") == 0){
+				in_redir_index = narg - i - 1;
+				//fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", narg - i - 1, cline[narg - i - 1][0], in_redir_index);
+				if((in_fd = open(cline[in_redir_index+1], O_RDONLY)) < 0) perror("failed to open file");
+				if(!set_in_fd) dup2(in_fd, 0); //dup2(0, in_fd);
+				cline[in_redir_index+1] = '\0';
+				cline[in_redir_index] = '\0';
+				set_in_fd = true;
 			}
 		}
-		if(out_redir_index != 0){
-			fprintf(stderr, "out_redir_index = %d\n", out_redir_index);
-			if((out_fd = open(cline[out_redir_index+1], O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0644)) < 0) perror("failed to open file");
-			dup2(out_fd, 1);
-			cline[out_redir_index+1] = '\0';
-			cline[out_redir_index] = '\0';
-		}
-		if(in_redir_index != 0){
-			fprintf(stderr, "in_redir_index = %d\n", in_redir_index);
-			if((in_fd = open(cline[in_redir_index+1], O_RDONLY)) < 0) perror("failed to open file");
-			dup2(0, in_fd);
-			cline[in_redir_index+1] = '\0';
-			cline[in_redir_index] = '\0';
-		}
+		//for(int i=0; cline[i] != '\0'; i++) fprintf(stderr, "final cline[%d] = %s\n", i, cline[i]);
 		
 		execvp(*cline, cline);
 		perror(*cline);
