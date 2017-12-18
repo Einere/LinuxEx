@@ -5,12 +5,17 @@
 #include <dirent.h>
 #include <string.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "getch.h"
 
 #define EOL 1
 #define ARG 2
 #define AMPERSAND 3
 #define SEMICOLON 4
+#define INPUT_REDIRECTION 5
+#define OUTPUT_REDIRECTION 6
 #define MAXARG 512
 #define MAXBUF 512
 #define FOREGROUND 0
@@ -19,7 +24,8 @@
 
 static char inpbuf[MAXBUF], tokbuf[2*MAXBUF], *ptr = inpbuf, *tok = tokbuf;
 char *prompt = "Command > ";
-static char special[] = {' ','\t','&',';','\n','\0'};
+static char special[] = {' ','\t','&',';','\n','\0', '>', '<'};
+
 int inarg(char c);
 int runcommand(char **cline, int where);
 void usr_ls();
@@ -191,6 +197,12 @@ int gettok(char **outptr){
 	case ';':
 		type = SEMICOLON;
 		break;
+	case '<':
+		type = INPUT_REDIRECTION;
+		break;
+	case '>':
+		type = OUTPUT_REDIRECTION;
+		break;
 	default:
 		type = ARG;
 		while(inarg(*ptr)){
@@ -219,10 +231,12 @@ int procline(void){
 	ptr = inpbuf, tok = tokbuf;
 	for (;;){
 		toktype = gettok(&arg[narg]);
-		fprintf(stderr, "arg[narg] = %s\n", arg[narg]);
+		fprintf(stderr, "arg[%d] = %s\n", narg, arg[narg]);
 		//set token in arg[narg] and return token's type
 		switch(toktype) {
 		case ARG: 
+		case INPUT_REDIRECTION:
+		case OUTPUT_REDIRECTION:
 			if (narg < MAXARG) narg++;
 			break;
 		case EOL:
@@ -250,6 +264,9 @@ int procline(void){
 int runcommand(char **cline, int where){
 	int pid;
 	int status;
+	int out_redir_index = 0;
+	int in_redir_index = 0;
+	int out_fd, in_fd;
 	switch(pid = fork()) {
 	case -1:
 		perror("smallsh");
@@ -263,6 +280,33 @@ int runcommand(char **cline, int where){
 			//cline[0] = "usr_ls";
 			usr_ls();
 		}
+		
+		for(int i = 0; cline[i] != '\0'; i++){
+			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
+			if(strcmp(cline[i], ">") == 0){
+				out_redir_index = i;
+				//fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
+			}
+			else if(strcmp(cline[i], "<") == 0){
+				in_redir_index = i;
+				//fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", i, cline[i][0], in_redir_index);
+			}
+		}
+		if(out_redir_index != 0){
+			fprintf(stderr, "out_redir_index = %d\n", out_redir_index);
+			if((out_fd = open(cline[out_redir_index+1], O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0644)) < 0) perror("failed to open file");
+			dup2(out_fd, 1);
+			cline[out_redir_index+1] = '\0';
+			cline[out_redir_index] = '\0';
+		}
+		if(in_redir_index != 0){
+			fprintf(stderr, "in_redir_index = %d\n", in_redir_index);
+			if((in_fd = open(cline[in_redir_index+1], O_RDONLY)) < 0) perror("failed to open file");
+			dup2(0, in_fd);
+			cline[in_redir_index+1] = '\0';
+			cline[in_redir_index] = '\0';
+		}
+		
 		execvp(*cline, cline);
 		perror(*cline);
 		exit(1);
@@ -276,7 +320,6 @@ int runcommand(char **cline, int where){
 }
 
 void usr_ls(){
-	fprintf(stderr, "heheheheheheheheh\n");
 	struct dirent* dentry;
 	DIR* dirp;
 	char cwd[50];
