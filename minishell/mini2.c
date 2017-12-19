@@ -27,7 +27,7 @@ char *prompt = "Command > ";
 static char special[] = {' ','\t','&',';','\n','\0', '>', '<'};
 
 int inarg(char c);
-int runcommand(char **cline, int where, int narg, bool is_pipe, char **my_cline);
+int runcommand(char **cline, int where, int narg, bool is_pipe, char **my_cline, int* p_pipe_fd);
 void usr_ls();
 int gettok(char **outptr);
 
@@ -259,7 +259,7 @@ int procline(void){
 				//if user type any command
 				arg[narg] = NULL;
 				//set final element is null. for exec function
-				runcommand(arg , type, narg, is_pipe, my_cline);
+				runcommand(arg , type, narg, is_pipe, my_cline, NULL);
 			}
 			
 			if (toktype == EOL){
@@ -271,7 +271,7 @@ int procline(void){
 	}
 }
 
-int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline){
+int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline, int* p_pipe_fd){
 	int pid;
 	int status;
 	int out_redir_index = 0;
@@ -279,7 +279,7 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline)
 	int out_fd, in_fd;
 	bool set_in_fd = false;
 	int pipe_fd[2];
-	//char* my_cline[10];
+	
 	fprintf(stderr, "[%d]i will run runcommand\n", getpid());	
 	switch(pid = fork()) {
 	case -1:
@@ -294,29 +294,30 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline)
 		
 		if(is_pipe){
 			fprintf(stderr, "[%d]is_pipe is true\n", getpid());
-			if(close(pipe_fd[1]) < 0) fprintf(stderr, "[%d]close(pipe_fd[1]) failed\n", getpid());
-			else fprintf(stderr, "[%d]close(pipe_fd[1]) success\n", getpid());
-			dup2(pipe_fd[0], 0);
-			fprintf(stderr, "[%d]dup2(pipe_fd[0], 0) complemte\n", getpid());
+			fprintf(stderr, "[%d]p_pipe_fd[1] = %d\n", getpid(), p_pipe_fd[1]);
+			if(close(p_pipe_fd[1]) < 0) fprintf(stderr, "[%d]close(p_pipe_fd[1]) failed\n", getpid());
+			else fprintf(stderr, "[%d]close(p_pipe_fd[1]) success\n", getpid());
+			dup2(p_pipe_fd[0], STDIN_FILENO);
+			fprintf(stderr, "[%d]dup2(p_pipe_fd[0], 0) complemte\n", getpid());
 		}
 		else fprintf(stderr, "[%d]is_pipe is false\n", getpid());
+		
 		for(int i = 0; i < narg; i++){
 			if(strcmp(cline[i], "|") == 0){
 				is_pipe = true;
-
+				pipe(pipe_fd);
+				fprintf(stderr, "[%d]pipe_fd[0] = %d, pipe_fd[1] = %d\n", getpid(), pipe_fd[0], pipe_fd[1]);
 				for(int j = 0; j < i; j++){
 					//strcpy(my_cline[j], cline[j]);
-					pipe(pipe_fd);
-					fprintf(stderr, "[%d]pipe_fd[0] = %d, pipe_fd[1] = %d\n", getpid(), pipe_fd[0], pipe_fd[1]);
 					my_cline[j] = cline[j];
 					cline = &cline[i+1];
 					fprintf(stderr, "[%d]my_cline[%d] = %s\n", getpid(), j, my_cline[j]);   
 					fprintf(stderr, "[%d]cline[0] = %s\n", getpid(), cline[0]);
-					runcommand(cline, where, narg-(i+1), is_pipe, my_cline);
-					i = narg;
-					break;
 				}
+				runcommand(cline, where, narg-(i+1), is_pipe, my_cline, pipe_fd);
+				break;
 			}
+			is_pipe = false;
 		} 
 			
 		if((strcmp(cline[0], "ls")) == 0 && cline[1] == NULL){
@@ -328,7 +329,7 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline)
 			//fprintf(stderr, "> , cline[%d] = %s, narg-i = %d\n", i, cline[i], narg-i);
 			if(cline[i] != '\0' && strcmp(cline[i], ">") == 0){
 				out_redir_index = i;
-				//fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
+				fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
 				if((out_fd = open(cline[out_redir_index+1], O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0644)) < 0) perror("failed to open file");
 				dup2(out_fd, 1);
 				cline[out_redir_index+1] = '\0';
@@ -337,7 +338,7 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline)
 			}
 			else if(strcmp(cline[narg - i - 1], "<") == 0){
 				in_redir_index = narg - i - 1;
-				//fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", narg - i - 1, cline[narg - i - 1][0], in_redir_index);
+				fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", narg - i - 1, cline[narg - i - 1][0], in_redir_index);
 				if((in_fd = open(cline[in_redir_index+1], O_RDONLY)) < 0) perror("failed to open file");
 				if(!set_in_fd) dup2(in_fd, 0); //dup2(0, in_fd);
 				cline[in_redir_index+1] = '\0';
@@ -346,30 +347,35 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline)
 			}
 		}
 		//for(int i=0; cline[i] != '\0'; i++) fprintf(stderr, "final cline[%d] = %s\n", i, cline[i]);
-		
+		fprintf(stdout, "gegegegegegegege(stdout)\n");
 		fprintf(stderr, "[%d]i will execute cline[0] = %s\n", getpid(), cline[0]);
 		execvp(*cline, cline);
 		perror(*cline);
+
 		exit(1);
 	}
 	//parent process
 	
 	if(is_pipe){
-		fprintf(stderr, "[%d]pipe_fd[0] = %d\n", getpid(), pipe_fd[0]);
-		if(close(pipe_fd[0]) < 0 ) fprintf(stderr, "[%d]close(pipe_fd[0]) failed\n", getpid());
-		else fprintf(stderr, "[%d]close(pipe_fd[0]) success\n", getpid());
+		fprintf(stderr, "[%d]p_pipe_fd[0] = %d\n", getpid(), p_pipe_fd[0]);
+		if(close(p_pipe_fd[0]) < 0 ) fprintf(stderr, "[%d]close(p_pipe_fd[0]) failed\n", getpid());
+		else fprintf(stderr, "[%d]close(p_pipe_fd[0]) success\n", getpid());
+		
 		int pid2;
 		int status2;
-		dup2(pipe_fd[1], 1);
-		fprintf(stderr, "[%d]dup2(pipe_fd[1], 1) is called\n", getpid());
+		dup2(p_pipe_fd[1], STDOUT_FILENO);
+		fprintf(stderr, "[%d]dup2(p_pipe_fd[1], 1) is called\n", getpid());
 		if((pid2 = fork()) < 0) perror("failed to fork");
 		else if(pid2 != 0){
+			fprintf(stderr, "[%d]p_pipe_fd[1] = %d\n", getpid(), p_pipe_fd[1]);
+			if(close(p_pipe_fd[1]) < 0 ) fprintf(stderr, "[%d]close(p_pipe_fd[1]) failed\n", getpid());
+			else fprintf(stderr, "[%d]close(p_pipe_fd[1]) success\n", getpid());
 			fprintf(stderr, "[%d]i will wait pid2(%d)\n", getpid(), pid2);
 			waitpid(pid2, &status2, 0);
 		}
 		else{
-
 			fprintf(stderr, "[%d]i will execute my_cline[0] = %s\n", getpid(), my_cline[0]);
+			fprintf(stdout, "zzzzzzzzzzzzz\n");
 			execvp(*my_cline, my_cline);
 		}
 	}
@@ -395,6 +401,7 @@ void usr_ls(){
 		if(strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0) 
 			fprintf(stdout, "%s ", dentry->d_name);
 	}
+	fflush(stdout);
 	fprintf(stderr, "\n");
 	exit(1);
 }
