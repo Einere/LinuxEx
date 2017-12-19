@@ -27,7 +27,7 @@ char *prompt = "Command > ";
 static char special[] = {' ','\t','&',';','\n','\0', '>', '<'};
 
 int inarg(char c);
-int runcommand(char **cline, int where, int narg);
+int runcommand(char **cline, int where, int narg, bool is_pipe, char **my_cline);
 void usr_ls();
 int gettok(char **outptr);
 
@@ -233,9 +233,11 @@ int inarg(char c) {
 
 int procline(void){
 	char *arg[MAXARG + 1]; //2dim array
+	char *my_cline[5];
 	int toktype;
 	int narg = 0;
 	int type;
+	bool is_pipe = false;
 	ptr = inpbuf, tok = tokbuf;
 	for (;;){
 		toktype = gettok(&arg[narg]);
@@ -257,7 +259,7 @@ int procline(void){
 				//if user type any command
 				arg[narg] = NULL;
 				//set final element is null. for exec function
-				runcommand(arg , type, narg);
+				runcommand(arg , type, narg, is_pipe, my_cline);
 			}
 			
 			if (toktype == EOL){
@@ -269,13 +271,16 @@ int procline(void){
 	}
 }
 
-int runcommand(char **cline, int where, int narg){
+int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline){
 	int pid;
 	int status;
 	int out_redir_index = 0;
 	int in_redir_index = 0;
 	int out_fd, in_fd;
 	bool set_in_fd = false;
+	int pipe_fd[2];
+	//char* my_cline[10];
+	fprintf(stderr, "[%d]i will run runcommand\n", getpid());	
 	switch(pid = fork()) {
 	case -1:
 		perror("smallsh");
@@ -286,10 +291,38 @@ int runcommand(char **cline, int where, int narg){
 			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
 		}
 		fprintf(stderr, "narg = %d\n", narg);
+		
+		if(is_pipe){
+			fprintf(stderr, "[%d]is_pipe is true\n", getpid());
+			if(close(pipe_fd[1]) < 0) fprintf(stderr, "[%d]close(pipe_fd[1]) failed\n", getpid());
+			else fprintf(stderr, "[%d]close(pipe_fd[1]) success\n", getpid());
+			dup2(pipe_fd[0], 0);
+			fprintf(stderr, "[%d]dup2(pipe_fd[0], 0) complemte\n", getpid());
+		}
+		else fprintf(stderr, "[%d]is_pipe is false\n", getpid());
+		for(int i = 0; i < narg; i++){
+			if(strcmp(cline[i], "|") == 0){
+				is_pipe = true;
+
+				for(int j = 0; j < i; j++){
+					//strcpy(my_cline[j], cline[j]);
+					pipe(pipe_fd);
+					fprintf(stderr, "[%d]pipe_fd[0] = %d, pipe_fd[1] = %d\n", getpid(), pipe_fd[0], pipe_fd[1]);
+					my_cline[j] = cline[j];
+					cline = &cline[i+1];
+					fprintf(stderr, "[%d]my_cline[%d] = %s\n", getpid(), j, my_cline[j]);   
+					fprintf(stderr, "[%d]cline[0] = %s\n", getpid(), cline[0]);
+					runcommand(cline, where, narg-(i+1), is_pipe, my_cline);
+					i = narg;
+					break;
+				}
+			}
+		} 
+			
 		if((strcmp(cline[0], "ls")) == 0 && cline[1] == NULL){
 			usr_ls();
 		}
-		
+
 		//for(int i = 0; cline[i] != '\0' ; i++){
 		for(int i = 0; i < narg; i++){	
 			//fprintf(stderr, "> , cline[%d] = %s, narg-i = %d\n", i, cline[i], narg-i);
@@ -314,16 +347,39 @@ int runcommand(char **cline, int where, int narg){
 		}
 		//for(int i=0; cline[i] != '\0'; i++) fprintf(stderr, "final cline[%d] = %s\n", i, cline[i]);
 		
+		fprintf(stderr, "[%d]i will execute cline[0] = %s\n", getpid(), cline[0]);
 		execvp(*cline, cline);
 		perror(*cline);
 		exit(1);
 	}
-	//parent process	
+	//parent process
+	
+	if(is_pipe){
+		fprintf(stderr, "[%d]pipe_fd[0] = %d\n", getpid(), pipe_fd[0]);
+		if(close(pipe_fd[0]) < 0 ) fprintf(stderr, "[%d]close(pipe_fd[0]) failed\n", getpid());
+		else fprintf(stderr, "[%d]close(pipe_fd[0]) success\n", getpid());
+		int pid2;
+		int status2;
+		dup2(pipe_fd[1], 1);
+		fprintf(stderr, "[%d]dup2(pipe_fd[1], 1) is called\n", getpid());
+		if((pid2 = fork()) < 0) perror("failed to fork");
+		else if(pid2 != 0){
+			fprintf(stderr, "[%d]i will wait pid2(%d)\n", getpid(), pid2);
+			waitpid(pid2, &status2, 0);
+		}
+		else{
+
+			fprintf(stderr, "[%d]i will execute my_cline[0] = %s\n", getpid(), my_cline[0]);
+			execvp(*my_cline, my_cline);
+		}
+	}
+	
 	if(where == BACKGROUND) {
 		printf("child's pid = %d\n", pid);
 		return(0);
 	}else if(waitpid(pid, &status, 0) == -1) return(-1);
 	else return (status);
+	
 }
 
 void usr_ls(){
@@ -332,12 +388,12 @@ void usr_ls(){
 	char cwd[50];
 
 	getcwd(cwd, sizeof(cwd));
-	fprintf(stderr, "cwd = %s\n", cwd);
+	fprintf(stderr, "[%d]cwd = %s\n", getpid(), cwd);
 
 	if((dirp = opendir(cwd)) == NULL) perror("open directory");
 	while((dentry = readdir(dirp)) != NULL){
 		if(strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0) 
-			fprintf(stderr, "%s ", dentry->d_name);
+			fprintf(stdout, "%s ", dentry->d_name);
 	}
 	fprintf(stderr, "\n");
 	exit(1);
