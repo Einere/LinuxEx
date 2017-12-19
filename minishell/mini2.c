@@ -81,7 +81,7 @@ int userin(char *p){
 				inpbuf[count] = '\n';
 				ptr = inpbuf, tok = tokbuf;
 				
-				if(!double_tab){
+				//if(!double_tab){
 					//if first tab, get token
 					do{
 						//fprintf(stderr, "tmp_narg = %d.\n", tmp_narg);
@@ -91,7 +91,7 @@ int userin(char *p){
 					tmp_narg--;
 					len = strlen(tmp[tmp_narg-1]);
 					//fprintf(stderr,"last-1 token = %s.\n", tmp[tmp_narg-1]);
-				}
+				//}
 
 				struct dirent* dentry;
 				DIR* dirp;
@@ -100,7 +100,15 @@ int userin(char *p){
 				getcwd(cwd, sizeof(cwd));
 				//fprintf(stderr, "cwd = %s\n", cwd);
 				fprintf(stderr, "\n");
-				if((dirp = opendir(cwd)) == NULL) perror("open directory");
+				
+				if(!double_tab){
+					//if first tab, get current working directory 
+					if((dirp = opendir(cwd)) == NULL) perror("open directory");
+				}
+				else{
+					//if double tab, get token (it's user input directory)
+					if((dirp = opendir(tmp[tmp_narg-1])) == NULL) perror("open directory");
+				}
 				while((dentry = readdir(dirp)) != NULL){
 					if(!double_tab){
 						//if first tab, compare token with d_name
