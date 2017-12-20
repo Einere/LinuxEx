@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "getch.h"
 
 #define EOL 1
@@ -25,6 +26,7 @@
 static char inpbuf[MAXBUF], tokbuf[2*MAXBUF], *ptr = inpbuf, *tok = tokbuf;
 char *prompt = "Command > ";
 static char special[] = {' ','\t','&',';','\n','\0', '>', '<'};
+struct sigaction act, act2;
 
 int inarg(char c);
 int runcommand(char **cline, int where, int narg, bool is_pipe, char **my_cline, int* p_pipe_fd);
@@ -69,7 +71,6 @@ int userin(char *p){
 			if(c == '\t'){
 				//if c is tap
 				char *tmp[10];
-				//fprintf(stderr, "row = %ld, column = %ld\n", sizeof(tmp)/sizeof(tmp[0]), sizeof(tmp[0]));
 				int tmp_narg = 0, same_count = 0, same_size;
 				int tmp_type;
 				//ptr = inpbuf, tok = tokbuf;
@@ -81,24 +82,19 @@ int userin(char *p){
 				inpbuf[count] = '\n';
 				ptr = inpbuf, tok = tokbuf;
 				
-				//if(!double_tab){
 					//if first tab, get token
 					do{
-						//fprintf(stderr, "tmp_narg = %d.\n", tmp_narg);
 						tmp_type = gettok(&tmp[tmp_narg]);
 						if(tmp_narg < MAXARG) tmp_narg++;
 					}while(tmp_type == ARG);
 					tmp_narg--;
 					len = strlen(tmp[tmp_narg-1]);
-					//fprintf(stderr,"last-1 token = %s.\n", tmp[tmp_narg-1]);
-				//}
 
 				struct dirent* dentry;
 				DIR* dirp;
 				char cwd[50];
 
 				getcwd(cwd, sizeof(cwd));
-				//fprintf(stderr, "cwd = %s\n", cwd);
 				fprintf(stderr, "\n");
 				
 				if(!double_tab){
@@ -112,14 +108,11 @@ int userin(char *p){
 				while((dentry = readdir(dirp)) != NULL){
 					if(!double_tab){
 						//if first tab, compare token with d_name
-						//fprintf(stderr, "strlen(tmp[tmp_narg-1]) = %ld\n", strlen(tmp[tmp_narg-1]));
 						if(strncmp(tmp[tmp_narg-1], dentry->d_name, len) ==0) flag = true;
 						else flag = false;
 
-						//fprintf(stderr, "tmp[tmp_narg-1][%d] = %c, dentry->d_name[%d] = %c\n", i, tmp[tmp_narg-1][i], i, dentry->d_name[i]); 
 						if(len < strlen(dentry->d_name) && flag){
 							strncpy(same_list[same_count], dentry->d_name, sizeof(same_list[same_count]));
-							//fprintf(stderr, "\nsame_list[same_count] = %s, same_count = %d.\n\n", same_list[same_count], same_count);
 							same_count++;
 						}
 					}else{
@@ -146,7 +139,6 @@ int userin(char *p){
 										}else flag = false;
 									}
 								}
-								//fprintf(stderr, "same_size = %d\n", same_size);
 							}while(flag);
 						
 						}
@@ -170,7 +162,6 @@ int userin(char *p){
 			//if c in enter
         	inpbuf[count] = '\0';
 			for(int i=0; i<=count; i++){
-				//fprintf(stderr, "inpbuf[i] = %c.\n", inpbuf[i]);
 			}
 			if(inpbuf[count-2] == 'q') exit(1);
 			//if user type '~~~q\n', exit 
@@ -194,7 +185,6 @@ int gettok(char **outptr){
 		ptr++;
 	}
     *tok++ = *ptr;
-	printf("[gettok] *ptr = %c.\n", *ptr);
     switch(*ptr++) {
     case '\n':
 		type = EOL;
@@ -214,7 +204,6 @@ int gettok(char **outptr){
 	default:
 		type = ARG;
 		while(inarg(*ptr)){
-			printf("[gettok] *ptr is %c.\n", *ptr);
 			*tok++ = *ptr++;
 		}
     }
@@ -225,7 +214,6 @@ int gettok(char **outptr){
 int inarg(char c) {
 	char *wrk;
 	for (wrk = special; *wrk; wrk++){
-		//printf("c = %c, wrk = %c.\n", c, *wrk);
 		if (c == *wrk) return (0);
 	}
 	return (1);
@@ -241,7 +229,6 @@ int procline(void){
 	ptr = inpbuf, tok = tokbuf;
 	for (;;){
 		toktype = gettok(&arg[narg]);
-		fprintf(stderr, "arg[%d] = %s\n", narg, arg[narg]);
 		//set token in arg[narg] and return token's type
 		switch(toktype) {
 		case ARG: 
@@ -279,40 +266,31 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline,
 	int out_fd, in_fd;
 	bool set_in_fd = false;
 	int pipe_fd[2];
-	
-	fprintf(stderr, "[%d]i will run runcommand\n", getpid());	
 	switch(pid = fork()) {
 	case -1:
 		perror("smallsh");
 		return(-1);
 	case 0:
 		//child process
-		for(int i=0; cline[i] != '\0'; i++){
-			fprintf(stderr, "cline[%d] = %s\n", i, cline[i]);
-		}
-		fprintf(stderr, "narg = %d\n", narg);
+		act.sa_handler = SIG_DFL;
+		act2.sa_handler = SIG_DFL;
+		sigaction(SIGINT, &act, NULL);
+		sigaction(SIGQUIT, &act2, NULL);
 		
 		if(is_pipe){
-			fprintf(stderr, "[%d]is_pipe is true\n", getpid());
-			fprintf(stderr, "[%d]p_pipe_fd[1] = %d\n", getpid(), p_pipe_fd[1]);
 			if(close(p_pipe_fd[1]) < 0) fprintf(stderr, "[%d]close(p_pipe_fd[1]) failed\n", getpid());
 			else fprintf(stderr, "[%d]close(p_pipe_fd[1]) success\n", getpid());
 			dup2(p_pipe_fd[0], STDIN_FILENO);
-			fprintf(stderr, "[%d]dup2(p_pipe_fd[0], 0) complemte\n", getpid());
 		}
-		else fprintf(stderr, "[%d]is_pipe is false\n", getpid());
 		
 		for(int i = 0; i < narg; i++){
 			if(strcmp(cline[i], "|") == 0){
 				is_pipe = true;
 				pipe(pipe_fd);
-				fprintf(stderr, "[%d]pipe_fd[0] = %d, pipe_fd[1] = %d\n", getpid(), pipe_fd[0], pipe_fd[1]);
 				for(int j = 0; j < i; j++){
-					//strcpy(my_cline[j], cline[j]);
 					my_cline[j] = cline[j];
 					cline = &cline[i+1];
-					fprintf(stderr, "[%d]my_cline[%d] = %s\n", getpid(), j, my_cline[j]);   
-					fprintf(stderr, "[%d]cline[0] = %s\n", getpid(), cline[0]);
+					my_cline[j+1] = '\0';
 				}
 				runcommand(cline, where, narg-(i+1), is_pipe, my_cline, pipe_fd);
 				break;
@@ -324,12 +302,10 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline,
 			usr_ls();
 		}
 
-		//for(int i = 0; cline[i] != '\0' ; i++){
 		for(int i = 0; i < narg; i++){	
-			//fprintf(stderr, "> , cline[%d] = %s, narg-i = %d\n", i, cline[i], narg-i);
 			if(cline[i] != '\0' && strcmp(cline[i], ">") == 0){
 				out_redir_index = i;
-				fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
+				//fprintf(stderr, "cline[%d][0] = %c, out_redir_index = %d\n", i, cline[i][0], out_redir_index);
 				if((out_fd = open(cline[out_redir_index+1], O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, 0644)) < 0) perror("failed to open file");
 				dup2(out_fd, 1);
 				cline[out_redir_index+1] = '\0';
@@ -338,7 +314,7 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline,
 			}
 			else if(strcmp(cline[narg - i - 1], "<") == 0){
 				in_redir_index = narg - i - 1;
-				fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", narg - i - 1, cline[narg - i - 1][0], in_redir_index);
+				//fprintf(stderr, "cline[%d][0] = %c, in_redir_index = %d\n", narg - i - 1, cline[narg - i - 1][0], in_redir_index);
 				if((in_fd = open(cline[in_redir_index+1], O_RDONLY)) < 0) perror("failed to open file");
 				if(!set_in_fd) dup2(in_fd, 0); //dup2(0, in_fd);
 				cline[in_redir_index+1] = '\0';
@@ -346,9 +322,7 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline,
 				set_in_fd = true;
 			}
 		}
-		//for(int i=0; cline[i] != '\0'; i++) fprintf(stderr, "final cline[%d] = %s\n", i, cline[i]);
-		fprintf(stdout, "gegegegegegegege(stdout)\n");
-		fprintf(stderr, "[%d]i will execute cline[0] = %s\n", getpid(), cline[0]);
+		
 		execvp(*cline, cline);
 		perror(*cline);
 
@@ -357,25 +331,19 @@ int runcommand(char **cline, int where, int narg, bool is_pipe, char** my_cline,
 	//parent process
 	
 	if(is_pipe){
-		fprintf(stderr, "[%d]p_pipe_fd[0] = %d\n", getpid(), p_pipe_fd[0]);
 		if(close(p_pipe_fd[0]) < 0 ) fprintf(stderr, "[%d]close(p_pipe_fd[0]) failed\n", getpid());
 		else fprintf(stderr, "[%d]close(p_pipe_fd[0]) success\n", getpid());
 		
 		int pid2;
 		int status2;
 		dup2(p_pipe_fd[1], STDOUT_FILENO);
-		fprintf(stderr, "[%d]dup2(p_pipe_fd[1], 1) is called\n", getpid());
 		if((pid2 = fork()) < 0) perror("failed to fork");
 		else if(pid2 != 0){
-			fprintf(stderr, "[%d]p_pipe_fd[1] = %d\n", getpid(), p_pipe_fd[1]);
-			if(close(p_pipe_fd[1]) < 0 ) fprintf(stderr, "[%d]close(p_pipe_fd[1]) failed\n", getpid());
-			else fprintf(stderr, "[%d]close(p_pipe_fd[1]) success\n", getpid());
-			fprintf(stderr, "[%d]i will wait pid2(%d)\n", getpid(), pid2);
+			if(close(p_pipe_fd[1]) < 0 ) fprintf(stderr, "[%d]close(p_pipe_fd[1]) failed!!!!!!!!!!!!!!\n", getpid());
+			else fprintf(stderr, "[%d]close(p_pipe_fd[1]) success!!!!!!!!!!!!!!!!\n", getpid());
 			waitpid(pid2, &status2, 0);
 		}
 		else{
-			fprintf(stderr, "[%d]i will execute my_cline[0] = %s\n", getpid(), my_cline[0]);
-			fprintf(stdout, "zzzzzzzzzzzzz\n");
 			execvp(*my_cline, my_cline);
 		}
 	}
@@ -394,8 +362,6 @@ void usr_ls(){
 	char cwd[50];
 
 	getcwd(cwd, sizeof(cwd));
-	fprintf(stderr, "[%d]cwd = %s\n", getpid(), cwd);
-
 	if((dirp = opendir(cwd)) == NULL) perror("open directory");
 	while((dentry = readdir(dirp)) != NULL){
 		if(strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0) 
@@ -406,6 +372,19 @@ void usr_ls(){
 	exit(1);
 }
 
+void handler(int signo){
+	fprintf(stderr, "SIGINT and SIGQUIT is bloked\n");
+}
+
 int main(){
-	while(userin(prompt) != EOF) procline();
+
+	act.sa_handler = handler;
+	act.sa_flags = 0;
+	act2.sa_handler = handler;
+	act2.sa_flags = 0;
+	sigemptyset(&act.sa_mask);
+	sigemptyset(&act2.sa_mask);
+	if(sigaction(SIGINT, &act, NULL) < 0) perror("failed to set SIGINT handler");
+	if(sigaction(SIGQUIT, &act2, NULL) < 0) perror("failed to set SIGQUIT handler");
+	while (1) while(userin(prompt) != EOF) procline();
 }
