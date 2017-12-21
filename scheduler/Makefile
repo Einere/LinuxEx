@@ -1,5 +1,5 @@
-example : Thread.o TestMain.o Scheduler.o TestCase1.o TestCase2.o TestCase3.o Init.o
-	gcc -g -pthread Thread.o TestMain.o Scheduler.o TestCase1.o TestCase2.o TestCase3.o Init.o -o example
+example : Thread.o TestMain.o Scheduler.o TestCase1.o TestCase2.o TestCase3.o Init.o MsgQueue.o
+	gcc -g -pthread Thread.o TestMain.o Scheduler.o TestCase1.o TestCase2.o TestCase3.o Init.o MsgQueue.o -o example
 Thread.o : Thread.c Helper.h
 	gcc -g -pthread -c Thread.c -o Thread.o
 TestMain.o : TestMain.c
@@ -14,3 +14,5 @@ TestCase3.o : TestCase3.c
 	gcc -g -pthread -c TestCase3.c -o TestCase3.o
 Init.o : Init.c Helper.h
 	gcc -g -pthread -c Init.c -o Init.o
+MsgQueue.o : MsgQueue.c
+	gcc -g -pthread -c MsgQueue.c -o MsgQueue.o

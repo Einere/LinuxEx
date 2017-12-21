@@ -110,7 +110,7 @@ int thread_join(thread_t thread, void **retval){
 	if(JCB->parentTid == thread_self()){
 		//if child exit befor join, don't call handler
 	}
-	else if(JCB->parentTid == NULL){
+	else if(JCB->parentTid == '\0'){
 		//if child exit after join
 		JCB->parentTid = thread_self();
 		__thread_wait_handler(0);
