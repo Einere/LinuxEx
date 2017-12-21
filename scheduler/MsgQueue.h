@@ -21,7 +21,7 @@ typedef struct _Message {
 typedef struct _Qcb {
 	int 		msgCount;
    	Message*	pMsgHead;
-    	Message*	pMsgTail;
+    Message*	pMsgTail;
 	int 		waitThreadCount;
 	Thread*		pThreadHead;
     Thread*		pThreadTail;
@@ -29,18 +29,18 @@ typedef struct _Qcb {
 
 
 typedef struct _QcbTblEntry {
-	int		key;
+	int			key;
 	Qcb*    	pQcb;
 } QcbTblEntry;	
 
 QcbTblEntry  qcbTblEntry[MAX_QCB_SIZE];
 
 
-void	_InitMsgQueue(void);
-int 	mymsgget(int key, int msgflg);
-int 	mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg);
+void _InitMsgQueue(void);
+int mymsgget(int key, int msgflg);
+int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg);
 int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg);
-int 	mymsgctl(int msqid, int cmd, void* buf);
+int mymsgctl(int msqid, int cmd, void* buf);
 
 
 
