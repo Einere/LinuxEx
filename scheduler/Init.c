@@ -8,5 +8,6 @@ void Init(void){
 	RunQHead = NULL;
 	JoinQHead = NULL;
 	JoinQTail = NULL;
+	_InitMsgQueue();
 }
 

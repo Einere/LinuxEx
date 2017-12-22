@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <pthread.h>
-
+#include "MsgQueue.h"
 pthread_cond_t static_cond; 
 pthread_mutex_t static_mutex;
 bool is_pushed;
@@ -45,5 +45,17 @@ JoinStr* jq_remove(pthread_t r_tid);
 JoinStr* jq_pop();
 void print_jq();
 
+
+void mq_push(Qcb *qcb, Message* in_msg);
+Message* mq_search(Qcb* qcb, long s_type);
+void mq_remove(Qcb* qcb, long r_type);
+Message* mq_pop(Qcb* qcb);
+void print_mq(Qcb* qcb);
+
+void tq_push(Qcb* qcb, Thread *tcb);
+Thread* tq_search(Qcb* qcb, long s_type);
+Thread* tq_remove(Qcb* qcb, long r_type);
+Thread* tq_pop(Qcb* qcb);
+void print_tq(Qcb* qcb);
 
 

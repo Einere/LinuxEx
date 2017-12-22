@@ -191,7 +191,7 @@ thread_t thread_self(){
 }	
 
 void __thread_wait_handler(int signo){
-	//call when send thread at ready queue
+	//call when send thread to ready queue
 	
 	Thread* tmp;
 	//fprintf(stderr, "[%ld]wait_handler is called (__thread_wait_handler())\n", thread_self());
@@ -239,21 +239,15 @@ Thread* __getThread(thread_t tid){
 
 void __thread_wakeup(Thread* pTCB){
 	//wake up thread with 1st TCB only when it need to run
-	//fprintf(stderr, "thread_wakeup called (__thread_wakeup)\n");	
 	pthread_mutex_lock(&(pTCB->readyMutex));
 	//lock mutex
-	//fprintf(stderr, "!!!!!!!!!!!!!!!!!!!!\n");
 	pTCB->bRunnable = true;
-	//fprintf(stderr, "@@@@@@@@@@@@@@@@@@@@\n");
 	pthread_cond_signal(&(pTCB->readyCond));
 	//change bRunnable to true, so thread corresponding TCB will be wake up
-	//fprintf(stderr, "####################\n");
 	pTCB->status = THREAD_STATUS_RUN;
 	//set status to run
-	//fprintf(stderr, "$$$$$$$$$$$$$$$$$$$$\n");
 	pthread_mutex_unlock(&(pTCB->readyMutex));
 	//unlock mutex
-	//fprintf(stderr, "^^^^^^^^^^^^^^^^^^^\n");
 }
 
 void rq_push(Thread *in_TCB){
