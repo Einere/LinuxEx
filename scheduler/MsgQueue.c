@@ -16,8 +16,13 @@ void _InitMsgQueue(void){
 }
 
 int	mymsgget(int key, int msgflg){
-	int i = -1;
+	int i;
 	
+	//if already exist qcb with key
+	for(i = 0; i < MAX_QCB_SIZE; i++){
+		if(qcbTblEntry[i].key == key) return i;
+	}
+
 	//find unused index at qcbTblEntry
 	for(i = 0; i < MAX_QCB_SIZE; i++){
 		//if unused index if fined
@@ -34,17 +39,14 @@ int	mymsgget(int key, int msgflg){
 			//set tmp_qcb at qcbTblEntry[i]
 			qcbTblEntry[i].key = key;
 			qcbTblEntry[i].pQcb = tmp_qcb;
-			break;
+			
+			fprintf(stderr, "qcbTblEntry[%d].key = %d\n", i, qcbTblEntry[i].key);
+			return i;
 		}
 	}
 	
 	//if no index to create msgQ, set index to be -1
-	if(i == MAX_QCB_SIZE) i = -1;
-	
-	if(i >= 0) fprintf(stderr, "qcbTblEntry[%d].key = %d\n", i, qcbTblEntry[i].key);
-	else fprintf(stderr, "failed to get msgQ. index = %d\n", i);
-
-	return i;
+	return -1;
 }
 
 int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
@@ -63,22 +65,15 @@ int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
 		tmp_msg->pPrev = NULL;
 		tmp_msg->pNext = NULL;
 
-		//if tmp_qcb has no message
+		//push message at qcb's messsage queue
 		mq_push(tmp_qcb, tmp_msg);
-		/*
-		if(tmp_qcb->pMsgHead == NULL){
-			tmp_qcb->pMsgHead = tmp_msg;
-			tmp_qcb->pMsgTail = tmp_msg;
-			tmp_qcb->msgCount++;
+
+		//if exist wating thread until message having type is push at message queue
+		Thread* wait_tcb = NULL;
+		if((wait_tcb = tq_remove(tmp_qcb, tmp_msg->type)) != NULL){
+			wait_tcb->status = THREAD_STATUS_READY;
+			rq_push(wait_tcb);
 		}
-		//if tmp_qcb has any message
-		else{
-			tmp_qcb->pMsgTail->pNext = tmp_msg;
-			tmp_msg->pPrev = tmp_qcb->pMsgTail;
-			tmp_qcb->pMsgTail = tmp_msg;
-			tmp_qcb->msgCount++;
-		}
-		*/
 	}
 	//if no exist qcb, set msgsz to be -1
 	else {
@@ -112,20 +107,34 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 			//reove searching message from message list
 			mq_remove(tmp_qcb, msgtyp);
 		}
-		//if don't exist searching message
+		//if don't exist searching message, caller will be blocked
 		else{
 			Thread* tcb = __getThread(thread_self());
 			RunQHead = NULL;
-			
+
+			if(tcb == NULL) fprintf(stderr, "tcb(tid = %d) is null\n", (int)thread_self());
 			tq_push(tmp_qcb, tcb);
 			tcb->status = THREAD_STATUS_BLOCKED;
 			tcb->type = msgtyp;
-			
 			__thread_wait_handler(1);
+
+			//if searching message is pushed, and caller is runned by scheduler, find searching message
+			//need to check qcb is exist
+			if(tmp_qcb != NULL){
+				if((iter = mq_search(tmp_qcb, msgtyp)) != NULL){
+					//copy iter's content to my_msgp
+					my_msgp->type = iter->type;
+					strncpy(my_msgp->data, iter->data, msgsz);
+					my_msgp->size = iter->size;
+				
+					//reove searching message from message list
+					mq_remove(tmp_qcb, msgtyp);
+				}	
+			}
 		}
 	}
 	//if no exist qcb, set msgsz to be -1
-	else{
+	if(qcbTblEntry[msqid].pQcb == NULL){
 		perror("no exist message Q with qid, msgsz is -1");
 		msgsz = -1;	
 	}
@@ -133,8 +142,29 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 	return msgsz;
 }
 
+//remove msq and reset qcbTblEntry[n] 
 int mymsgctl(int msqid, int cmd, void* buf){
-	return 0;
+	Qcb* qcb = NULL;
+	
+	//if exist qcb at qcbTblEntry[msqid]
+	if((qcb = qcbTblEntry[msqid].pQcb) != NULL){
+		//free message queue
+		Message* iter_msg = qcb->pMsgHead;
+		while(iter_msg != NULL){
+			Message* f_msg = iter_msg;
+			iter_msg = iter_msg->pNext;
+			free(f_msg);
+		}
+		//move all waiting tcb at ready Q
+		Thread* m_tcb = NULL;
+		while((m_tcb = tq_pop(qcb)) != NULL){
+			m_tcb->type = 0;
+			m_tcb->status = THREAD_STATUS_READY;
+			rq_push(m_tcb);
+		}
+	}
+	//if no exist qcb at qcbTblEntry, return -1
+	else return -1;
 }
 
 
@@ -247,6 +277,29 @@ void tq_push(Qcb* qcb, Thread *tcb){
 	}
 }
 
+//search TCB by tid in all waiting queue
+Thread* tq_all_search(thread_t s_tid){
+	Thread* tmp;
+	Qcb* qcb;
+	
+	//for all qcb
+	for(int i = 0; i < MAX_QCB_SIZE; i++){
+		if((qcb = qcbTblEntry[i].pQcb) != NULL){
+			tmp = qcb->pThreadHead;
+		
+			//search TCB at qcb's waiting queue
+			while(tmp != NULL){
+				if(tmp->tid == s_tid){
+					return tmp;		
+				}
+				tmp = tmp->pNext;
+			}
+		}
+	}
+	//if no TCB in all qcb
+	return NULL;
+}
+
 //search TCB by s_type in waiting queue
 Thread* tq_search(Qcb* qcb, long s_type){
 	Thread* tmp = qcb->pThreadHead;
@@ -323,3 +376,16 @@ void print_tq(Qcb* qcb){
 	printf("print waiting queue end\n");
 }
 
+int free_qcb(Qcb* f_qcb){
+	//free message queue
+	Message* iter_msg = f_qcb->pMsgHead;
+	while(iter_msg != NULL){
+		Message* tmp_msg = iter_msg;
+		//free(tmp_msg->data);
+		iter_msg = iter_msg->pNext;
+		free(tmp_msg);
+	}
+	
+	//free 
+
+}

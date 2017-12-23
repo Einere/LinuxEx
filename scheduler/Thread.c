@@ -1,5 +1,3 @@
-#include "Thread.h"
-#include "Init.h"
 #include "Scheduler.h"
 #include "Helper.h"
 #include <signal.h>
@@ -220,19 +218,27 @@ Thread* __getThread(thread_t tid){
 	Thread* tmp;
 
 	if((tmp = rq_search(tid)) != NULL){
-		//fprintf(stderr, "TCB is in ready queue (__getThread())\n");
+		fprintf(stderr, "TCB is in ready queue (__getThread())\n");
 		return tmp;
 	}
 	//if TCB is in ready queue
 	if((tmp = wq_search(tid)) != NULL){
-		//fprintf(stderr, "TCB is in wait queue (__getThread())\n");	
+		fprintf(stderr, "TCB is in wait queue (__getThread())\n");	
 		return tmp;
 	}
 	//if TCB is in wait queue
 	if(RunQHead != NULL){
-		if(RunQHead->tid == tid) return RunQHead;
+		if(RunQHead->tid == tid){
+			fprintf(stderr, "TCB is in run queue (__getThread())\n");
+			return RunQHead;
+		}
 	}
 	//if TCB is in Run queue
+	if((tmp = tq_all_search(tid)) != NULL){
+		fprintf(stderr, "TCB is in thread queue (waiting queue) (__getThread())\n");
+		return tmp;
+	}
+	fprintf(stderr, "TCB is not exist in any queue (__getThread())\n");
 	return NULL;
 	//not exist TCB in ready queue and wait queue
 }

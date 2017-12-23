@@ -1,8 +1,29 @@
-test : main2.o MsgQueue.o Thread.o
-	gcc -g -pthread main2.o MsgQueue.o Thread.o -o test
-main2.o : main2.c Helper.h
-	gcc -g -c main2.c -o main2.o
+TARGET = example
+OBJECTS = Init.o MsgQueue.o Scheduler.o Thread.o TestMain.o TestCase1.o TestCase2.o TestCase3.o 
+SRCS = $(OBJECTS:.o=.c)
+
+CC = gcc
+CFLAGS = -g -c
+.SUFFIXES : .c .o
+
+$(TARGET) : $(OBJECTS) 
+	$(CC) -g -pthread $(OBJECTS) -o $@
+Init.o : Init.c Helper.h
+#	$(CC) $(CFLAGS) $*.c -o $@
 MsgQueue.o : MsgQueue.c Helper.h
-	gcc -g -c MsgQueue.c -o MsgQueue.o
-Thread.o : Thread.c Helper.h
-	gcc -g -c Thread.c -o Thread.o
+#	$(CC) $(CFLAGS) $*.c -o $@
+Scheduler.o : Scheduler.c Init.h Thread.h Helper.h
+#	$(CC) $(CFLAGS) $*.c -o $@
+Thread.o : Thread.c Scheduler.h Helper.h
+#	$(CC) $(CFLAGS) $*.c -o $@
+TestMain.o : TestMain.c
+#	$(CC) $(CFLAGS) $*.c -o $@
+TestCase1.o : TestCase1.c
+#	$(CC) $(CFLAGS) $*.c -o $@
+TestCase2.o : TestCase2.c
+#	$(CC) $(CFLAGS) $*.c -o $@
+TestCase3.o : TestCase3.c
+#	$(CC) $(CFLAGS) $*.c -o $@
+
+clean : 
+	rm $(OBJECTS)
