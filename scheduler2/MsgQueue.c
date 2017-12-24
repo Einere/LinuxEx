@@ -67,7 +67,7 @@ int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
 
 		//push message at qcb's messsage queue
 		mq_push(tmp_qcb, tmp_msg);
-		print_mq(tmp_qcb);
+
 		//if exist wating thread until message having type is push at message queue
 		Thread* wait_tcb = NULL;
 		if((wait_tcb = tq_remove(tmp_qcb, tmp_msg->type)) != NULL){
@@ -104,6 +104,9 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 			strncpy(my_msgp->data, iter->data, msgsz);
 			my_msgp->size = iter->size;
 			
+			//set msgsz to actual read size 
+			msgsz = strlen(my_msgp->data);
+
 			//remove searching message from message list
 			mq_remove(tmp_qcb, msgtyp);
 		}
@@ -118,7 +121,7 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 			tcb->status = THREAD_STATUS_BLOCKED;
 			tcb->type = msgtyp;
 			tcb->bRunnable = false;
-			print_tq(tmp_qcb);
+
 			__thread_wait_handler(1);
 			
 			//if searching message is pushed, and caller is runned by scheduler, find searching message
@@ -129,17 +132,20 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 					my_msgp->type = iter->type;
 					strncpy(my_msgp->data, iter->data, msgsz);
 					my_msgp->size = iter->size;
-					
+
+					//set msgsz to actual read size 
+					msgsz = strlen(my_msgp->data);
+
 					//remove searching message from message Q
 					mq_remove(tmp_qcb, msgtyp);
 				}	
 			}
-			else fprintf(stderr, "i wake up. but no qcb in table....(mymsgrcv)\n");
+			//else fprintf(stderr, "i wake up. but no qcb in table....(mymsgrcv)\n");
 		}
 	}
 	//if no exist qcb, set msgsz to be -1
 	if(qcbTblEntry[msqid].pQcb == NULL){
-		perror("no exist message Q with qid, msgsz is -1");
+		perror("no exist message Q with qid, msgsz is setted -1 ");
 		msgsz = -1;	
 	}
 
@@ -158,8 +164,9 @@ int mymsgctl(int msqid, int cmd, void* buf){
 			Message* f_msg = iter_msg;
 			iter_msg = iter_msg->pNext;
 			free(f_msg);
+			f_msg = NULL;
 		}
-		fprintf(stderr, "i will flush thread Q\n");
+		//fprintf(stderr, "iter_msg = %p (mymsgctl)\n", iter_msg);
 		
 		//move all waiting tcb at ready Q
 		Thread* m_tcb = NULL;
@@ -168,7 +175,8 @@ int mymsgctl(int msqid, int cmd, void* buf){
 			m_tcb->status = THREAD_STATUS_READY;
 			rq_push(m_tcb);
 		}
-		
+
+		qcbTblEntry[msqid].pQcb = NULL;
 		return 0;
 	}
 	//if no exist qcb at qcbTblEntry, return -1
@@ -238,7 +246,8 @@ void mq_remove(Qcb* qcb, long r_type){
 	tmp->pNext = NULL;
 	qcb->msgCount--;
 	
-	//free(tmp);
+	free(tmp);
+	tmp = NULL;
 }
 
 //pop head message from messsage queue
