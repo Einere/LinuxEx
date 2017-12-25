@@ -77,11 +77,10 @@ int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
 	}
 	//if no exist qcb, set msgsz to be -1
 	else {
-		perror("no exist message Q with qid, msgsz is -1");
+		perror("no exist message Q with qid, msgsz is -1 (mymsgsnd)");
 		msgsz = -1;
 	}
-
-	//printf("tmp_qcb->pMsgTail->data = %s...\n", tmp_qcb->pMsgTail->data);	
+	//printf("tmp_qcb(key = %d)->pMsgTail->data = %s...\n", qcbTblEntry[msqid].key, tmp_qcb->pMsgTail->data);	
 	return msgsz;
 }
 
@@ -140,7 +139,7 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 					mq_remove(tmp_qcb, msgtyp);
 				}	
 			}
-			//else fprintf(stderr, "i wake up. but no qcb in table....(mymsgrcv)\n");
+			else fprintf(stderr, "i wake up. but no qcb in table....(mymsgrcv)\n");
 		}
 	}
 	//if no exist qcb, set msgsz to be -1
@@ -155,9 +154,11 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 //remove msq and reset qcbTblEntry[n] 
 int mymsgctl(int msqid, int cmd, void* buf){
 	Qcb* qcb = NULL;
-	
+		
 	//if exist qcb at qcbTblEntry[msqid]
 	if((qcb = qcbTblEntry[msqid].pQcb) != NULL){
+
+		/*
 		//free message queue
 		Message* iter_msg = qcb->pMsgHead;
 		while(iter_msg != NULL){
@@ -167,7 +168,13 @@ int mymsgctl(int msqid, int cmd, void* buf){
 			f_msg = NULL;
 		}
 		//fprintf(stderr, "iter_msg = %p (mymsgctl)\n", iter_msg);
-		
+		*/
+
+		//if message is remain at qcb's message Q
+		if(qcb->pMsgHead != NULL){
+			return -1;	
+		}
+		fprintf(stderr, "no message in message Q(key = %d), move waiting tcb to ready Q (mymsgctl)\n", qcbTblEntry[msqid].key);
 		//move all waiting tcb at ready Q
 		Thread* m_tcb = NULL;
 		while((m_tcb = tq_pop(qcb)) != NULL){
