@@ -51,7 +51,7 @@ int	mymsgget(int key, int msgflg){
 
 int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
 	Qcb* tmp_qcb = NULL;
-
+	
 	//get Qcb with msqid in qcbTblEntry
 	if(qcbTblEntry[msqid].pQcb != NULL){
 		tmp_qcb = qcbTblEntry[msqid].pQcb;
@@ -80,6 +80,7 @@ int mymsgsnd(int msqid, const void *msgp, int msgsz, int msgflg){
 		perror("no exist message Q with qid, msgsz is -1 (mymsgsnd)");
 		msgsz = -1;
 	}
+	
 	//printf("tmp_qcb(key = %d)->pMsgTail->data = %s...\n", qcbTblEntry[msqid].key, tmp_qcb->pMsgTail->data);	
 	return msgsz;
 }
@@ -91,7 +92,6 @@ int	mymsgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg){
 	//get Qcb with msqid in qcbTblEntry
 	if(qcbTblEntry[msqid].pQcb != NULL){
 		tmp_qcb = qcbTblEntry[msqid].pQcb;
-		//Message* iter = tmp_qcb->pMsgHead;
 		
 		//find message with type from head to tail
 		Message* iter = mq_search(tmp_qcb, msgtyp);
@@ -174,7 +174,7 @@ int mymsgctl(int msqid, int cmd, void* buf){
 		if(qcb->pMsgHead != NULL){
 			return -1;	
 		}
-		fprintf(stderr, "no message in message Q(key = %d), move waiting tcb to ready Q (mymsgctl)\n", qcbTblEntry[msqid].key);
+		
 		//move all waiting tcb at ready Q
 		Thread* m_tcb = NULL;
 		while((m_tcb = tq_pop(qcb)) != NULL){
@@ -182,8 +182,11 @@ int mymsgctl(int msqid, int cmd, void* buf){
 			m_tcb->status = THREAD_STATUS_READY;
 			rq_push(m_tcb);
 		}
-
+		
+		//free 
+		free(qcbTblEntry[msqid].pQcb);
 		qcbTblEntry[msqid].pQcb = NULL;
+		qcbTblEntry[msqid].key = -1;
 		return 0;
 	}
 	//if no exist qcb at qcbTblEntry, return -1
@@ -376,13 +379,21 @@ Thread* tq_remove(Qcb* qcb, long r_type){
 
 //pop head TCB from waiting queue
 Thread* tq_pop(Qcb* qcb){
-	Thread* tmp = qcb->pThreadHead;
+	Thread* tmp; // = qcb->pThreadHead;
+
+	//if qcb isn't exist
+	if(qcb != NULL) tmp = qcb->pThreadHead;
+	else {
+		perror("qcb is null (tq_pop) ");
+		return NULL;
+	}
 
 	//if no tcb in waiting queue
 	if(tmp == NULL){
 		perror("not exist TCB in waiting queue (tq_pop) ");
 		return NULL;
 	}
+
 	//if exist tcb in waiting queue
 	if(tmp->pNext != NULL) tmp->pNext->pPrev = NULL;
 	qcb->pThreadHead = tmp->pNext;

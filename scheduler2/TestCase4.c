@@ -1,4 +1,4 @@
-#include "TestCase3.h"
+#include "TestCase4.h"
 #define MAX_TEXT 512
 struct mymsgbuf{
 		long mytype;
@@ -20,7 +20,6 @@ int SendInTestCase4(int inputKey)
 		perror("msgget");
 		exit(1);
 	}
-
 	mesg.mytype = 1;
 	strcpy(mesg.mtext,"Message Q Test");
 	if(mymsgsnd(msgid,(void*)&mesg,MAX_TEXT,0)==-1)
@@ -89,7 +88,7 @@ void RemoveMessageQueueTest4(int inputKey){
 			break;
 		}
 		else{
-			continue;
+			continue ;
 		}
 	}
 }
