@@ -3,11 +3,12 @@
 
 void FileSysInit(void)
 {
-	__Inode pInit = (__Inode)malloc(sizeof(__Inode));
+	int* pInit = (int)malloc(512);
 	memset(pInit, 0, sizeof(__Inode));
-	for(int i = 0; i < 6; i++){ 
+	for(int i = 0; i < 7; i++){ 
 		DevWriteBlock(i, pInit);
 	}
+
 }
 void SetInodeBitmap(int blkno)
 {
