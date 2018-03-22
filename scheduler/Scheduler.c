@@ -10,7 +10,6 @@ int RunScheduler( void ){
 	//run scheduler
 	Thread* pCurThread = NULL;
 	Thread* pNewThread = NULL;
-	
 	while(1){
 		fflush(stdout);
 		
@@ -40,7 +39,6 @@ void __ContextSwitch(Thread* pCurThread, Thread* pNewThread){
 
 	if(pCurThread != NULL){
 		//if current thread is exist
-		
 		pCurThread->status = THREAD_STATUS_READY;
 		pCurThread->bRunnable = false;
 		//set stoped thread's status to ready
