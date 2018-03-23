@@ -8,7 +8,7 @@ void setbit(char* ptr, int bit_index);
 int main(){
 	char* ptr = (char*)malloc(MAX_SIZE);
 	memset(ptr, 0, MAX_SIZE);
-	setbit(ptr, 10);
+	setbit(ptr, 0);
 	
 	for(int i = MAX_SIZE - 1; i >=0; i--){
 		for(int j = 0; j < 8; j++){
