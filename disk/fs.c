@@ -9,12 +9,6 @@ void setbit(char* ptr, int bit_index){
 	printf("byte_index = %d, shift_num = %d\n", byte_index, shift_num);	
 	*(ptr + byte_index) |= 1 << (8 - 1 - shift_num);
 	//*(ptr + byte_index) |= 1 << shift_num;
-	
-	for(int i = MAX_SIZE*8 - 1; i>=0; i--){
-		//printf("%d", (1024 >> i) & 1);
-		printf("%d", (*ptr >> i) & 1);
-		if(i%8 == 0) printf(" ");
-	}
 }
 
 void FileSysInit(void)
