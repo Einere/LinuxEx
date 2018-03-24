@@ -1,61 +1,87 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "fs.h"
 #include "disk.h"
-#define BLOCK_SIZE 512
-
-void setbit(char* ptr, int bit_index){
-	int byte_index = bit_index / 8;
-	int shift_num = bit_index % 8;
-	printf("byte_index = %d, shift_num = %d\n", byte_index, shift_num);	
-	*(ptr + byte_index) |= 1 << (8 - 1 - shift_num);
-	//*(ptr + byte_index) |= 1 << shift_num;
-}
 
 void FileSysInit(void)
 {
+	//create and open virtual disk
+	DevCreateDisk();
+	DevOpenDisk();
+
+	//alloc temp block and init
 	char* pInit = (char*)malloc(BLOCK_SIZE);
 	memset(pInit, 0, BLOCK_SIZE);
+
+	//write at all disk blocks, free
 	for(int i = 0; i < 7; i++){ 
 		DevWriteBlock(i, pInit);
 	}
 	free(pInit);
 }
 
-void SetInodeBitmap(int blkno)
+void SetInodeBitmap(int inodeno)
 {
+	//alloc temp block and read
 	char* pIB = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(INODE_BITMAP_BLK_NUM, pIB);
-	setbit(pIB, blkno);
+	
+	//calculate and set bit
+	int byte_index = inodeno / 8;
+	int shift_num = inodeno % 8;
+	*(pIB + byte_index) |= 1 << (8 - 1 - shift_num);
+	
+	//write at disk block and free
 	DevWriteBlock(INODE_BITMAP_BLK_NUM, pIB);
 	free(pIB);
 }
 
 
-void ResetInodeBitmap(int blkno)
+void ResetInodeBitmap(int inodeno)
 {
-	char* pIB = (char*)malloc(512);
+	//alloc temp block and read
+	char* pIB = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(INODE_BITMAP_BLK_NUM, pIB);
-	pIB &= ~(1 << (BLOCK_SIZE - 1 - bit_num)); //block number? bit number?
+	
+	//calculate and reset bit
+	int byte_index = inodeno / 8;
+	int shift_num = inodeno % 8;
+	*(pIB + byte_index) &= ~(1 << (8 - 1 - shift_num));
+	
+	//write at disk block and free
 	DevWriteBlock(INODE_BITMAP_BLK_NUM, pIB);
 	free(pIB);
-
 }
 
 void SetBlockBitmap(int blkno)
 {
-	char* pBB = (char*)malloc(512);
+	//alloc temp block and read
+	char* pBB = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(BLOCK_BITMAP_BLK_NUM, pBB);
-	pBB |= (1 << (BLOCK_SIZE - 1 - bit_num)); //block number? bit number?
+	
+	//calculate and set bit
+	int byte_index = blkno / 8;
+	int shift_num = blkno % 8;
+	*(pBB + byte_index) |= 1 << (8 - 1 - shift_num);
+	
+	//write at disk block and free
 	DevWriteBlock(BLOCK_BITMAP_BLK_NUM, pBB);
 	free(pBB);
 }
 
-
 void ResetBlockBitmap(int blkno)
 {
-	char* pBB = (char*)malloc(512);
+	//alloc temp block and read
+	char* pBB = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(BLOCK_BITMAP_BLK_NUM, pBB);
-	pBB &= ~(1 << (BLOCK_SIZE - 1 - bit_num)); //block number? bit number?
+
+	//calculate and reset bit
+	int byte_index = blkno / 8;
+	int shift_num = blkno % 8;
+	*(pBB + byte_index) &= ~(1 << (8 - 1 - shift_num));
+
+	//write at disk block and free
 	DevWriteBlock(BLOCK_BITMAP_BLK_NUM, pBB);
 	free(pBB);
 }
@@ -63,39 +89,67 @@ void ResetBlockBitmap(int blkno)
 
 void PutInode(int blkno, Inode* pInode)
 {
+	//alloc temp block and read
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
-	int block_num = (Inode_num / 8) + INODELIST_BLK_FIRST; //block number? inode number?
-	DevReadBlock(block_num, pBlock);
-	memcpy(pBlock + (Inode_num % 8) * sizeof(__Inode), pInode, sizeof(__Inode));
-	DevWriteBlock(block_num, pBlock);	
+	int block_index = (blkno / 8) + INODELIST_BLK_FIRST; 
+	DevReadBlock(block_index, pBlock);
+
+	//copy from pInode to inode list, write and free
+	memcpy(pBlock + (blkno % 8) * sizeof(Inode), pInode, sizeof(Inode));
+	DevWriteBlock(block_index, pBlock);	
 	free(pBlock);
 }
 
 
 void GetInode(int blkno, Inode* pInode)
 {
+	//alloc temp block and read
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
-	int block_num = (Inode_num / 8) + INODELIST_BLK_FIRST; //block number? inode number?
-	DevReadBlock(block_num, pBlock);
-	memcpy(pInode, pBlock + (Inode_num % 8) * sizeof(__Inode), sizeof(__Inode));
+	int block_index = (blkno / 8) + INODELIST_BLK_FIRST; 
+	DevReadBlock(block_index, pBlock);
+
+	//copy from inode list to pInode and free
+	memcpy(pInode, pBlock + (blkno % 8) * sizeof(Inode), sizeof(Inode));
 	free(pBlock);
 }
 
 
 int GetFreeInodeNum(void)
 {
+	//alloc temp block and read 
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(INODE_BITMAP_BLK_NUM, pBlock);
-	
-	for(int i = (BLOCK_SIZE * 8) - 1; i >= 0; i--){
-		if(!((*pBlock >> i) | 0)) return BLOCK_SIZE * 8 - i;	
+
+	//find first zero bit and return bit index
+	for(int i = 0; i <= BLOCK_SIZE - 1; i++){
+		//if pBlock[i] == 11111111, continue
+		if(pBlock[i] == -1) continue;
+
+		for(int j = 7; j >= 0; j--){
+			if(!(pBlock[i] >> j & 1)){
+				return (i * 8) + (7 - j);
+			}
+		}
 	}
 }
 
-
 int GetFreeBlockNum(void)
 {
+	//alloc temp block and read 
+	char* pBlock = (char*)malloc(BLOCK_SIZE);
+	DevReadBlock(BLOCK_BITMAP_BLK_NUM, pBlock);
 
+	//find first zero bit and return bit index
+	for(int i = 0; i <= BLOCK_SIZE - 1; i++){
+		//if pBlock[i] == 11111111, continue
+		if(pBlock[i] == -1) continue;
+		
+		for(int j = 7; j >= 0; j--){
+			if(!(pBlock[i] >> j & 1)){
+				return (i * 8) + (7 - j);
+			}
+		}
+	}
 }
 
 

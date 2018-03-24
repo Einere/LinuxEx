@@ -13,8 +13,8 @@ typedef struct __Inode {
 } Inode;
 
 void FileSysInit(void);
-void SetInodeBitmap(int blkno);
-void ResetInodeBitmap(int blkno);
+void SetInodeBitmap(int inodeno);
+void ResetInodeBitmap(int inodeno);
 void SetBlockBitmap(int blkno);
 void ResetBlockBitmap(int blkno);
 void PutInode(int blkno, Inode* pInode);
