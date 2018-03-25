@@ -2,6 +2,12 @@
 #include "fs.h"
 #include "disk.h"
 
+
+/******************/
+#include <fcntl.h>
+#include <unistd.h>
+/******************/
+
 void testcase1(void)
 {
     int n = GetFreeInodeNum();
@@ -121,6 +127,8 @@ void testcase6()
 {
     int inodeCount = INODELIST_BLKS*BLOCK_SIZE/sizeof(Inode);
     Inode inode = {0, 0, 0};
+    int result = 1;
+    int log[32] = {0};
     for(int index=0; index<inodeCount; ++index)
     {
         PutInode(index, &inode);
@@ -130,23 +138,52 @@ void testcase6()
         /** inode.type += inode.allocBlocks; */
     }
 
-    int sum;
     for(int index=0; index<inodeCount; ++index)
     {
         GetInode(index, &inode);
-        sum = inode.allocBlocks+inode.type;
-        printf("%d ",sum);
+        int isSame = (inode.allocBlocks==index && inode.type==index);
+        if( !isSame )
+        {
+            log[index] = 1;
+        }
+        result &= isSame;
     }
-    printf("\nresult : ");
-    if(sum==(inodeCount-1)*2)
-        printf("success! :)");
-    else
-        printf("FAILED... :(");
-    puts("");
+    printf("----------------\n%d\n----------------\n",result);
+    for(int index=0; index<inodeCount; ++index)
+    {
+        if( log[index]==1 )
+        {
+            printf("inode %d has a problem", index);
+        }
+    }
+
 }
 
-void main(void)
+void testcase7()
+{
+    int fd, result=0;
+    int acc = 0;
+    fd = open("MY_DISK", O_RDWR);
+    lseek(fd, 0, SEEK_SET);
+    char c=0;
+    while(1)
+    {
+        int nread = read(fd, &c, 1);
+        if(nread<1)
+        {
+            break;
+        }
+        result += c;
+        acc += 1;
+
+    }
+    printf("%d, %d\n", acc, result);
+}
+
+void (*func[])(void) = {testcase1, testcase2, testcase3, testcase4, testcase5, testcase6, testcase7};
+void main(int argc, char* args[])
 {
 	FileSysInit();
-    testcase6();
+    if(argc<2) {printf("인자 넣어라\n");return;}
+    func[*args[1]-'0']();
 }

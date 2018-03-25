@@ -89,11 +89,14 @@ void ResetBlockBitmap(int blkno)
 
 void PutInode(int blkno, Inode* pInode)
 {
+	//check blkno is in 0~31
+	if(blkno >= INODELIST_BLKS * (BLOCK_SIZE / sizeof(Inode))) return;
+	
 	//alloc temp block and read
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
 	int block_index = (blkno / 8) + INODELIST_BLK_FIRST; 
 	DevReadBlock(block_index, pBlock);
-
+	
 	//copy from pInode to inode list, write and free
 	memcpy(pBlock + (blkno % 8) * sizeof(Inode), pInode, sizeof(Inode));
 	DevWriteBlock(block_index, pBlock);	
