@@ -87,32 +87,32 @@ void ResetBlockBitmap(int blkno)
 }
 
 
-void PutInode(int blkno, Inode* pInode)
+void PutInode(int inodeno, Inode* pInode)
 {
-	//check blkno is in 0~31
-	if(blkno >= INODELIST_BLKS * (BLOCK_SIZE / sizeof(Inode))) return;
+	//check inodeno is in 0~31
+	if(inodeno >= INODELIST_BLKS * (BLOCK_SIZE / sizeof(Inode))) return;
 	
 	//alloc temp block and read
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
-	int block_index = (blkno / 8) + INODELIST_BLK_FIRST; 
+	int block_index = (inodeno / 8) + INODELIST_BLK_FIRST; 
 	DevReadBlock(block_index, pBlock);
 	
 	//copy from pInode to inode list, write and free
-	memcpy(pBlock + (blkno % 8) * sizeof(Inode), pInode, sizeof(Inode));
+	memcpy(pBlock + (inodeno % 8) * sizeof(Inode), pInode, sizeof(Inode));
 	DevWriteBlock(block_index, pBlock);	
 	free(pBlock);
 }
 
 
-void GetInode(int blkno, Inode* pInode)
+void GetInode(int inodeno, Inode* pInode)
 {
 	//alloc temp block and read
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
-	int block_index = (blkno / 8) + INODELIST_BLK_FIRST; 
+	int block_index = (inodeno / 8) + INODELIST_BLK_FIRST; 
 	DevReadBlock(block_index, pBlock);
 
 	//copy from inode list to pInode and free
-	memcpy(pInode, pBlock + (blkno % 8) * sizeof(Inode), sizeof(Inode));
+	memcpy(pInode, pBlock + (inodeno % 8) * sizeof(Inode), sizeof(Inode));
 	free(pBlock);
 }
 

@@ -17,8 +17,8 @@ void SetInodeBitmap(int inodeno);
 void ResetInodeBitmap(int inodeno);
 void SetBlockBitmap(int blkno);
 void ResetBlockBitmap(int blkno);
-void PutInode(int blkno, Inode* pInode);
-void GetInode(int blkno, Inode* pInode);
+void PutInode(int inodeno, Inode* pInode);
+void GetInode(int inodeno, Inode* pInode);
 int GetFreeInodeNum(void);
 int GetFreeBlockNum(void);
 
