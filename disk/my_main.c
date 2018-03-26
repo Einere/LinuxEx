@@ -16,7 +16,7 @@ void testcase1(void)
     Inode inode={10,11,0};
     Inode check;
     PutInode(1, &inode);
-    SetInodeBitmap(1);
+    SetInodeBitmap(2);
 
     GetInode(1, &check);
     printf("%d, %d\n", check.allocBlocks, check.type);

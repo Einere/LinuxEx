@@ -7,15 +7,17 @@ void setbit(char* ptr, int bit_index);
 void resetbit(char* ptr, int bit_index);
 void printbit(char* ptr);
 void find_first_zero(char* ptr);
+void printbit2(char* ptr);
 
 int main(){
 	char* ptr = (char*)malloc(MAX_SIZE);
 	memset(ptr, 0, MAX_SIZE);
 
-	for(int i=0; i < ; i++) setbit(ptr, i);
+	for(int i=0; i < 10; i++) setbit(ptr, i);
 	
 	find_first_zero(ptr);
-	printbit(ptr);	
+	printbit(ptr);
+	printbit2(ptr);
 	printf("\n");	
 	return 0;
 }
@@ -43,6 +45,17 @@ void printbit(char* ptr){
 		}
 		printf(" ");
 	}
+	printf("\n");
+}
+
+void printbit2(char* ptr){
+	for(int i = 0; i < MAX_SIZE; i++){
+		for(int j = 7; j >= 0; j--){
+			printf("%d", (ptr[i] >> j) & 1);
+		}
+		printf(" ");
+	}
+	printf("\n");
 }
 
 void find_first_zero(char* ptr){
@@ -61,4 +74,4 @@ void find_first_zero(char* ptr){
 		}
 		//printf(" ");
 	}
-
+}

@@ -1,3 +1,7 @@
+#ifndef __FS_H__
+
+#define __FS_H__
+
 #define NUM_OF_BLK_PTR  (14)
 	
 #define INODE_BITMAP_BLK_NUM  (1) /* inode bitmap block no. */
@@ -23,5 +27,4 @@ int GetFreeInodeNum(void);
 int GetFreeBlockNum(void);
 
 
-
-
+#endif
