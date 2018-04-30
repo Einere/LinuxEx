@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "Disk.h"
 #include "fs.h"
-#include "disk.h"
 
 #define SET true
 #define RESET false
+
+FileDescTable* pFileDescTable = NULL;
 
 void printbit2(char* ptr){
 	for(int i = 0; i < 4; i++){
@@ -145,7 +147,47 @@ int GetFreeBlockNum(void)
 }
 
 
+int		OpenFile(const char* szFileName, OpenFlag flag)
+{
+
+}
 
 
+int		WriteFile(int fileDesc, char* pBuffer, int length)
+{
+
+}
+
+int		ReadFile(int fileDesc, char* pBuffer, int length)
+{
+
+}
 
 
+int		CloseFile(int fileDesc)
+{
+
+}
+
+int		RemoveFile(const char* szFileName)
+{
+
+}
+
+
+int		MakeDir(const char* szDirName)
+{
+
+}
+
+
+int		RemoveDir(const char* szDirName)
+{
+
+}
+
+
+void		EnumerateDirStatus(const char* szDirName, DirEntry* pDirEntry, int* pNum)
+{
+
+}
