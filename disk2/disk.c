@@ -6,7 +6,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-#include "disk.h"
+#include "Disk.h"
 
 int fd; 
 

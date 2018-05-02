@@ -4,11 +4,15 @@
 #include <stdbool.h>
 #include "Disk.h"
 #include "fs.h"
+#include "Matrix.h"
 
 #define SET true
 #define RESET false
 
 FileDescTable* pFileDescTable = NULL;
+
+bool findMakeDir(int inoIndex, int fInoIndex, int fBlkIndex, Matrix* m, int depth);
+bool myMakeDir(int inoIndex, int fInoIndex, int fBlkIndex, Matrix* m, int depth);
 
 void printbit2(char* ptr){
 	for(int i = 0; i < 4; i++){
@@ -54,7 +58,7 @@ void FileSysInit(void)
 	memset(pInit, 0, BLOCK_SIZE);
 
 	//write at all disk blocks, free
-	for(int i = 0; i < 7; i++){ 
+	for(int i = 0; i < BLOCK_SIZE*8; i++){ 
 		DevWriteBlock(i, pInit);
 	}
 	free(pInit);
@@ -119,7 +123,7 @@ int GetFreeInodeNum(void)
 	DevReadBlock(INODE_BITMAP_BLK_NUM, pBlock);
 
 	//find first zero bit and return bit index
-	for(int i = 0; i <= BLOCK_SIZE - 1; i++){
+	for(int i = 0; i < NUM_OF_INODE_PER_BLK * INODELIST_BLKS / 8; i++){
 		//if pBlock[i] == 11111111, continue
 		if(pBlock[i] == -1) continue;
 
@@ -134,9 +138,16 @@ int GetFreeBlockNum(void)
 	//alloc temp block and read 
 	char* pBlock = (char*)malloc(BLOCK_SIZE);
 	DevReadBlock(BLOCK_BITMAP_BLK_NUM, pBlock);
-
+	
 	//find first zero bit and return bit index
-	for(int i = 0; i <= BLOCK_SIZE - 1; i++){
+	//start at 19 bit because 0~18 bit is for file system
+	int i = 2;
+	for(int j = 4; j >= 0; j--){
+		if(!(pBlock[i] >> j & 1)) return (i * 8) + (7 - j);
+	}
+	
+	//start 24 bit
+	for(i = 3; i < BLOCK_SIZE; i++){
 		//if pBlock[i] == 11111111, continue
 		if(pBlock[i] == -1) continue;
 		
@@ -173,11 +184,159 @@ int		RemoveFile(const char* szFileName)
 {
 
 }
+bool findMakeDir(int inoIndex, int fInoIndex, int fBlkIndex, Matrix* m, int depth){
+	//declare flag var
+	bool exist = false;
 
+	//get current inode
+	Inode* root;
+	GetInode(inoIndex, root);
+
+	//alloc memory
+	char* blkPtr = (char*)malloc(BLOCK_SIZE);
+
+	//check file name is already exist
+	//in direct ptr	
+	for(int i = 0; i < NUM_OF_DIRECT_BLK_PTR; i++){
+		//read blcok, cast to DirEntry
+		//check dirBlkPtr is NULL => if NULL, no more block is alloced
+		if(root->dirBlkPtr[i] != NULL) DevReadBlock(root->dirBlkPtr[i], blkPtr);
+		else break; 
+		DirEntry* dirPtr = (DirEntry*)blkPtr;
+	
+		//compare paresed name with DirEntry's name
+		for(int j = 0; j < NUM_OF_DIRENT_PER_BLK; j++){
+			//if file is already exist
+			if(dirPtr[j] != NULL && strcmp(m->array[depth], dirPtr[j]->name) == 0){
+				exist = true;
+				i = NUM_OF_DIRECT_BLK_PTR;
+				break;
+			}
+		}
+	}
+	//check if exist is false & indir pointer in not null
+	if(!exist && root->indirBlkPointer != NULL){
+		//get first inode
+		Inode* first;
+		GetInode(root->indirBlkPointer, first);
+
+		//check first inode's dir block
+		for(int i=0; i<NUM_OF_DIRECT_BLK_PTR; i++){
+			//read blcok, cast to DirEntry
+			//check dirBlkPtr is NULL => if NULL, no more block is alloced
+			if(first->dirBlkPtr[i] != NULL) DevReadBlock(first->dirBlkPtr[i], blkPtr);
+			else break;
+			DirEntry* dirPtr = (DirEntry*)blkPtr;
+			
+			//compare paresed name with DirEntry's name
+			for(int j = 0; j < NUM_OF_DIRENT_PER_BLK; j++){
+				//if file is already exist
+				if(dirPtr[j] != NULL && strcmp(m->array[depth], dirPtr[j]->name) == 0){
+					exist = true;
+					i = NUM_OF_DIRECT_BLK_PTR;
+					break;
+				}
+			}
+		}
+	}
+	//if file name is exist
+	if(exist){
+		//call recursive func
+		findMakeDir();
+	}
+	//if file name isn't exist
+	else{
+		myMakeDir();
+	}
+	//free
+	free(root);
+	free(blkPtr);
+}
+
+bool myMakeDir(int inoIndex, int fInoIndex, int fBlkIndex, Matrix* m, int depth){
+	//get current inode
+	Inode* root;
+	GetInode(inoIndex, root);
+
+	//for all dirBlkpPtr	
+	for(int i = 0; i < NUM_OF_DIRECT_BLK_PTR; i++){
+		//read blcok, cast to DirEntry
+		//check dirBlkPtr is NULL => if NULL, no more block is alloced
+		if(root->dirBlkPtr[i] != NULL) DevReadBlock(root->dirBlkPtr[i], blkPtr);
+		else break; 
+		DirEntry* dirPtr = (DirEntry*)blkPtr;
+	
+		//for all DirEntry
+		for(int j = 0; j < NUM_OF_DIRENT_PER_BLK; j++){
+			//if find empty DirEntry
+			if(dirPtr[j] == NULL){
+				//set dirEntry
+				strcpy(dirPtr[j].name, m->array[depth]);
+				dirPtr[j].inodeNum = fInoIndex;
+					
+				//write to disk
+				DevWriteBlock(root->dirBlkPtr[i], dirPtr[j]);
+					
+				i = NUM_OF_DIRECT_BLK_PTR;
+				break;
+			}
+		}
+	}
+	//check if indir pointer in not null
+	if(root->indirBlkPointer != NULL){
+		//get first inode
+		Inode* first;
+		GetInode(root->indirBlkPointer, first);
+
+		//for all first's dirBlkPtr
+		for(int i=0; i<NUM_OF_DIRECT_BLK_PTR; i++){
+			//read blcok, cast to DirEntry
+			//check dirBlkPtr is NULL => if NULL, no more block is alloced
+			if(first->dirBlkPtr[i] != NULL) DevReadBlock(first->dirBlkPtr[i], blkPtr);
+			else break;
+			DirEntry* dirPtr = (DirEntry*)blkPtr;
+				
+			//for all DirEntry
+			for(int j = 0; j < NUM_OF_DIRENT_PER_BLK; j++){
+				//if file is already exist
+				if(dirPtr[j] == NULL){
+					//set dirEntry
+					strcpy(dirPtr[j].name, m->array[depth]);
+					dirPtr[j].inodeNum = fInoIndex;
+					
+					//write to disk
+					DevWriteBlock(root->dirBlkPtr[i], dirPtr[j]);
+					
+					i = NUM_OF_DIRECT_BLK_PTR;
+					break;
+				}
+			}
+		}
+	}
+
+	//need to dir make 3
+}
 
 int		MakeDir(const char* szDirName)
 {
+	//for save string
+	Matrix m;
+	initMatrix(&m, 2);
 
+	//split path
+	char* parsePtr = strtok(szDirName, "/");
+	
+	//parse, save string
+	while(parsePtr != NULL){
+		inseirtMatrix(&m, parsePtr);
+		parsePtr = strtok(szDirName, "/");
+	}
+	
+	//get free block index
+	int fBlkIndex = GetFreeBlockNum();
+	int fInoIndex = GetFreeInodeNum();
+
+	findMakeDir();
 }
 
 
