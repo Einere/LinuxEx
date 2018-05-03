@@ -1,5 +1,5 @@
 TARGET = test
-OBJECTS = main.o disk.o fs.o Matrix.o mount.o
+OBJECTS = testcase.o disk.o fs.o validate.o
 SRCS = $(OBJECTS:.o=.c)
 
 CC = gcc
@@ -8,15 +8,11 @@ CFLAGS = -g -c
 
 $(TARGET) : $(OBJECTS) 
 	$(CC) -g -pthread $(OBJECTS) -o $@
-main.o : main.c fs.h
+testcase.o : testcase.c validate.h
 #	$(CC) $(CFLAGS) $*.c -o $@
-disk.o : disk.c Disk.h
+disk.o : disk.c disk.h
 
-fs.o : fs.c fs.h Matrix.h
-
-Matrix.o : Matrix.c Matrix.h
-
-mount.o : mount.c
+fs.o : fs.c fs.h
 
 clean : 
 	rm $(OBJECTS)
