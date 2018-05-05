@@ -15,7 +15,7 @@ void		Mount(MountType type)
 		case MT_TYPE_FORMAT:
 			//init disk
 			FileSysInit();
-	
+			
 			//get free block index & free Inode index
 			int fBlkIndex = GetFreeBlockNum();
 			int fInoIndex = GetFreeInodeNum(); 

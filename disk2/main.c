@@ -6,12 +6,18 @@
 int main(){
 	Mount(MT_TYPE_FORMAT);
 	
-	printf("before MakeDir hi)))\nfirst free inode index : %d\nfirst free block index : %d\n", GetFreeInodeNum(), GetFreeBlockNum());
 	int a = MakeDir("/hi");
 	
-	printf("after MakeDir hi)))\nfirst free inode index : %d\nfirst free block index : %d\n", GetFreeInodeNum(), GetFreeBlockNum());
 	int b = MakeDir("/hi/bye");
-	printf("after MakeDir hi/bye)))\nfirst free inode index : %d\nfirst free block index : %d\n", GetFreeInodeNum(), GetFreeBlockNum());
 	printf("MakeDir(/hi) retrun %d, MakeDir(/hi/bye) return %d\n", a, b);
 
+	printf("----------------------------------------\n");
+	int c = OpenFile("/aa", OPEN_FLAG_CREATE);
+	printf("OpenFile(/aa) return %d\n",c);
+
+	int d = OpenFile("/hi/bb", OPEN_FLAG_CREATE);
+	printf("OpenFile(/hi/bb) return %d\n", d);
+
+	int e = OpenFile("/hi/bye/cc", OPEN_FLAG_CREATE);
+	printf("OpenFile(/hi/bye/cc) return %d\n", e);
 }
