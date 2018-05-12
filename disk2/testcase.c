@@ -130,20 +130,20 @@ void TestCase1(void)
 	ListDirContents("/home");
 	ListDirContents("/etc");
 
-	// /* remove subdirectory of etc directory */
-	// for (i = 23; i >= 0; i--)
-	// {
-	// 	memset(dirName, 0, MAX_NAME_LEN);
-	// 	sprintf(dirName, "/etc/dev%d", i);
-	// 	RemoveDir(dirName);
-	// }
+	/* remove subdirectory of etc directory */
+	for (i = 23; i >= 0; i--)
+	{
+		memset(dirName, 0, MAX_NAME_LEN);
+		sprintf(dirName, "/etc/dev%d", i);
+		RemoveDir(dirName);
+	}
 
-	// ListDirContents("/etc");
+	ListDirContents("/etc");
 
-	// /* remove subdirectory of root directory except /home */
-	// RemoveDir("/etc");
-	// RemoveDir("/usr");
-	// RemoveDir("/tmp");
+	/* remove subdirectory of root directory except /home */
+	RemoveDir("/etc");
+	RemoveDir("/usr");
+	RemoveDir("/tmp");
 }
 
 
