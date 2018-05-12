@@ -6,7 +6,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-#include "Disk.h"
+#include "disk.h"
 
 int fd; 
 
@@ -34,4 +34,10 @@ void DevWriteBlock(int blkno, char* pBuf)
 {
    __DevMoveBlock(blkno);
    write(fd, pBuf, BLOCK_SIZE);
+}
+
+
+void DevCloseDisk(void)
+{
+    close(fd);
 }

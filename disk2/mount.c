@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "fs.h"
-#include "Disk.h"
+#include "disk.h"
 
 
 FileSysInfo* pFileSysInfo = NULL;
@@ -36,12 +36,12 @@ void		Mount(MountType type)
 			fsPtr->rootInodeNum = fInoIndex;
 			fsPtr->diskCapacity = FS_DISK_CAPACITY;
 			fsPtr->numAllocBlocks = 1;
-			fsPtr->numFreeBlocks = (BLOCK_SIZE * 8) - (3 + INODELIST_BLKS + 1);
+			fsPtr->numFreeBlocks = (BLOCK_SIZE * 8) - (3 + INODELIST_BLOCKS + 1);
 			fsPtr->numAllocInodes = 1;
-			fsPtr->blockBitmapBlock = BLOCK_BITMAP_BLK_NUM;
-			fsPtr->inodeBitmapBlock = INODE_BITMAP_BLK_NUM;
-			fsPtr->inodeListBlock = INODELIST_BLK_FIRST;
-			fsPtr->dataReionBlock = 19;
+			fsPtr->blockBitmapBlock = BLOCK_BITMAP_BLOCK_NUM;
+			fsPtr->inodeBitmapBlock = INODE_BITMAP_BLOCK_NUM;
+			fsPtr->inodeListBlock = INODELIST_BLOCK_FIRST;
+			fsPtr->dataRegionBlock = 19;
 			DevWriteBlock(FILESYS_INFO_BLOCK, (char*)fsPtr);
 			
 			//set bitmap
@@ -53,9 +53,13 @@ void		Mount(MountType type)
 			GetInode(fInoIndex, inoPtr);
 			inoPtr->size = 0;
 			inoPtr->type = FILE_TYPE_DIR;
-			inoPtr->dirBlkPtr[0] = fBlkIndex;
-			inoPtr->indirBlkPointer = 0;
+			inoPtr->dirBlockPtr[0] = fBlkIndex;
+			inoPtr->indirBlockPtr = 0;
 			PutInode(fInoIndex, inoPtr);
+			
+			//free
+			free(dirEntryPtr);
+			free(fsPtr);
 			break;
 
 		//if MT_TYPE_READWRITE
@@ -70,6 +74,6 @@ void		Mount(MountType type)
 
 void		Unmount(void)
 {
-	//close(fd);
+	DevCloseDisk();
 }
 

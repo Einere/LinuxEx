@@ -1,28 +1,27 @@
-#ifndef __FILESYSTEM_H__
+﻿#ifndef __FILESYSTEM_H__
 #define __FILESYSTEM_H__
 
-#include "Disk.h"
+#include "disk.h"
 
 
 // ------- Caution -----------------------------------------
-#define FS_DISK_CAPACITY	(8388608) /* 8M */
+#define FS_DISK_CAPACITY		(BLOCK_SIZE*512) 	/* 수정 */
 #define MAX_FD_ENTRY_LEN		(64)
 
 
-#define NUM_OF_INODE_PER_BLK	(BLOCK_SIZE / sizeof(Inode))
-#define NUM_OF_DIRENT_PER_BLK	(BLOCK_SIZE / sizeof(DirEntry))
+#define NUM_OF_INODE_PER_BLOCK	(BLOCK_SIZE / sizeof(Inode))	/* block 당 inode 개수 */
+#define NUM_OF_DIRENT_PER_BLOCK	(BLOCK_SIZE / sizeof(DirEntry)) /* block 당 directory entry 개수 */
 
 
-#define NUM_OF_DIRECT_BLK_PTR	(2)
-#define MAX_INDEX_OF_DIRBLK	(NUM_OF_DIRECT_PER_BLK)
-#define MAX_NAME_LEN      (12)
+#define NUM_OF_DIRECT_BLOCK_PTR	(2)	/* direct block pointer의 개수 */
+#define MAX_NAME_LEN     	(12)
 
 
 #define FILESYS_INFO_BLOCK    (0) /* file system info block no. */
-#define BLOCK_BITMAP_BLK_NUM  (1) /* block bitmap block no. */
-#define INODE_BITMAP_BLK_NUM  (2) /* inode bitmap block no. */
-#define INODELIST_BLK_FIRST   (3) /* the first block no. of inode list */
-#define INODELIST_BLKS        (16) /* the number of blocks in inode list */
+#define BLOCK_BITMAP_BLOCK_NUM  (1) /* block bitmap block no. */
+#define INODE_BITMAP_BLOCK_NUM  (2) /* inode bitmap block no. */
+#define INODELIST_BLOCK_FIRST   (3) /* the first block no. of inode list */
+#define INODELIST_BLOCKS        (16) /* the number of blocks in inode list */
 
 
 // ----------------------------------------------------------
@@ -56,6 +55,14 @@ typedef struct  __dirEntry {
 } DirEntry;
 
 
+/* 추가 */
+typedef struct __dirEntryInfo {
+    char name[MAX_NAME_LEN];
+    int inodeNum;
+    FileType type;
+} DirEntryInfo; 
+
+
 
 typedef enum __mountType {
     MT_TYPE_FORMAT,
@@ -65,26 +72,26 @@ typedef enum __mountType {
 
 
 typedef struct _FileSysInfo {
-    int blocks;              // \B5\F0\BD\BAũ\BF\A1 \C0\FA\C0\E5\B5\C8 \C0\FCü \BA\ED\B7\CF \B0\B3\BC\F6
-    int rootInodeNum;        // \B7\E7Ʈ inode\C0\C7 \B9\F8ȣ
-    int diskCapacity;        // \B5\F0\BD\BAũ \BF뷮 (Byte \B4\DC\C0\A7)
-    int numAllocBlocks;      // \C6\C4\C0\CF \B6Ǵ\C2 \B5\F0\B7\BA\C5丮\BF\A1 \C7Ҵ\E7\B5\C8 \BA\ED\B7\CF \B0\B3\BC\F6
-    int numFreeBlocks;       // \C7Ҵ\E7\B5\C7\C1\F6 \BE\CA\C0\BA \BA\ED\B7\CF \B0\B3\BC\F6
-    int numAllocInodes;       // \C7Ҵ\E7\B5\C8 inode \B0\B3\BC\F6 
-    int blockBitmapBlock;     // block bitmap\C0\C7 \BD\C3\C0\DB \BA\ED\B7\CF \B9\F8ȣ
-    int inodeBitmapBlock;     // inode bitmap\C0\C7 \BD\C3\C0\DB \BA\ED\B7\CF \B9\F8ȣ
-    int inodeListBlock;		// inode list\C0\C7 \BD\C3\C0\DB \BA\ED\B7\CF \B9\F8ȣ
-    int dataReionBlock;		// data region\C0\C7 \BD\C3\C0\DB \BA\ED\B7\CF \B9\F8ȣ
+    int blocks;              // 디스크에 저장된 전체 블록 개수
+    int rootInodeNum;        // 루트 inode의 번호
+    int diskCapacity;        // 디스크 용량 (Byte 단위)
+    int numAllocBlocks;      // 파일 또는 디렉토리에 할당된 블록 개수
+    int numFreeBlocks;       // 할당되지 않은 블록 개수
+    int numAllocInodes;       // 할당된 inode 개수 
+    int blockBitmapBlock;     // block bitmap의 시작 블록 번호
+    int inodeBitmapBlock;     // inode bitmap의 시작 블록 번호
+    int inodeListBlock;		// inode list의 시작 블록 번호
+    int dataRegionBlock;		// data region의 시작 블록 번호 (수정)
 } FileSysInfo;
 
 
 
 
 typedef struct _Inode {
-    short 	size;              // \C6\C4\C0\CF ũ\B1\E2
-    short 	type;              // \C6\C4\C0\CF Ÿ\C0\D4
-    int 	dirBlkPtr[NUM_OF_DIRECT_BLK_PTR];	// Direct block pointers
-    int   	indirBlkPointer;	// Single indirect block pointer
+    short 	size;              	// 파일 크기
+    short 	type;              	// 파일 타입
+    int 	dirBlockPtr[NUM_OF_DIRECT_BLOCK_PTR];	// Direct block pointers (수정)
+    int   	indirBlockPtr;	// Single indirect block pointer
 } Inode;
 
 
@@ -106,17 +113,20 @@ extern int		CloseFile(int fileDesc);
 extern int		RemoveFile(const char* szFileName);
 extern int		MakeDir(const char* szDirName);
 extern int		RemoveDir(const char* szDirName);
-extern void		EnumerateDirStatus(const char* szDirName, DirEntry* pDirEntry, int* pNum);
+extern int 		EnumerateDirStatus(const char* szDirName, DirEntryInfo* pDirEntry, int dirEntrys );  
 extern void		Mount(MountType type);
 extern void		Unmount(void);
+
 
 extern FileDescTable* pFileDescTable;
 extern FileSysInfo* pFileSysInfo;
 
+extern void FileSysInit(void);	
+
 /*  File system internal functions */
 
 
-void FileSysInit(void);
+
 void SetInodeBitmap(int inodeno);
 void ResetInodeBitmap(int inodeno);
 void SetBlockBitmap(int blkno);

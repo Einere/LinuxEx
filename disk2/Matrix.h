@@ -9,4 +9,5 @@ typedef struct{
 
 void initMatrix(Matrix* m, size_t initCapa);
 void insertMatrix(Matrix* m, char* element);
+void printMatrix(Matrix* m);
 void freeMatrix(Matrix* m);
