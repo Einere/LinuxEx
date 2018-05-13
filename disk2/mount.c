@@ -66,6 +66,17 @@ void		Mount(MountType type)
 		case MT_TYPE_READWRITE:
 			//open virtual disk
 			DevOpenDisk();	
+			
+			//init fd table
+			pFileDescTable = (FileDescTable*)malloc(sizeof(FileDescTable));
+			memset(pFileDescTable, 0, sizeof(FileDescTable));
+
+			//load file sys info
+			if(pFileSysInfo == NULL){
+				pFileSysInfo = (FileSysInfo*)malloc(BLOCK_SIZE);
+				DevReadBlock(FILESYS_INFO_BLOCK, (char*)pFileSysInfo);
+			}
+
 			break;
 	}
 	
