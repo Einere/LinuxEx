@@ -8,8 +8,10 @@
             "name": "Debug",
             "type": "gdb",
             "request": "launch",
-            "target": "./bin/executable",
-            //"target": "./test",
+            //"target": "./bin/executable",
+            "target": "./target/debug/nameofprogramexecutable",
+            //"program": "${workspaceRoot}/test",
+            "gdbpath": "rust-gdb",
             "cwd": "${workspaceRoot}"
         }
     ]

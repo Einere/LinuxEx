@@ -21,7 +21,7 @@ void PrintInodeBitmap(void)
 	int* pBitmap = (int*)malloc(BLOCK_SIZE);
 
 	count = BLOCK_SIZE / sizeof(int);
-	DevReadBlock(2, (char*)pBitmap);
+	DevReadBlock(2, pBitmap);
 	printf("Inode bitmap: ");
 	for (i = 0; i < count; i++)
 		printf("%d", pBitmap[i]);
@@ -34,8 +34,8 @@ void PrintBlockBitmap(void)
 	int count;
 	int* pBitmap = (int*)malloc(BLOCK_SIZE);
 
-	count = BLOCK_SIZE / sizeof(int);         /* bit ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 64*8 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ */
-	DevReadBlock(1, (char*)pBitmap);
+	count = BLOCK_SIZE / sizeof(int);         /* bit °³¼ö´Â 64*8 °³°¡ Á¸Àç */
+	DevReadBlock(1, pBitmap);
 	printf("Block bitmap");
 	for (i = 0; i < count; i++)
 		printf("%d", pBitmap[i]);
@@ -70,7 +70,7 @@ void ListDirContentsAndSize(const char* dirName)
 	{
 		if (pDirEntry[i].type == FILE_TYPE_FILE) {
 			GetInode(pDirEntry[i].inodeNum, &pInode);
-			printf("\t name:%s, inode no:%d, type:file, size:%d\n", pDirEntry[i].name, pDirEntry[i].inodeNum, pInode.size);
+			printf("\t name:%s, inode no:%d, type:file, size:%d, blocks:%d\n", pDirEntry[i].name, pDirEntry[i].inodeNum, pInode.size);
 		}
 		else if (pDirEntry[i].type == FILE_TYPE_DIR)
 			printf("\t name:%s, inode no:%d, type:directory\n", pDirEntry[i].name, pDirEntry[i].inodeNum);
@@ -194,16 +194,15 @@ void TestCase3(void) {
 	int cIndex = 0;
 	int cmpCount = 0;
 	int fd[4] = { 0, };
-	ListDirContents("/home");
+
 	MakeDir("/home/test");
-	
 	for (i = 0; i < 4; i++)
 	{
 		memset(fileName, 0, FILENAME_MAX_LEN);
 		sprintf(fileName, "/home/test/file%d", i);
 		fd[i] = OpenFile(fileName, OPEN_FLAG_CREATE);
 	}
-	ListDirContents("/home/test");
+
 	for (i = 0; i < 18; i++)
 	{
 		for (j = 0; j < 4; j++)
@@ -217,17 +216,16 @@ void TestCase3(void) {
 			free(str);
 		}
 	}
-	printf("will close fileN...\n");
+
 	for (i = 0; i < 4; i++)
 		CloseFile(fd[i]);
 
-	ListDirContents("/home/test");
+
 	for (i = 0; i < 4; i++)
 	{
 		memset(fileName, 0, FILENAME_MAX_LEN);
 		sprintf(fileName, "/home/test/file%d", i);
 		fd[i] = OpenFile(fileName, OPEN_FLAG_READWRITE);
-		printf("received fd[%d] = %d\n", i, fd[i]);
 	}
 
 	cIndex = 0;
